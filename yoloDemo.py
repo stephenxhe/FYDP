@@ -15,8 +15,8 @@ classNames = []
 with open(classesFile, 'rt') as f:
     classNames = f.read().rstrip('\n').split('\n')
 
-modelConfiguration = 'yolov3.cfg'
-modelWeights = 'yolov3.weights'
+modelConfiguration = 'yolov4-leaky.cfg'
+modelWeights = 'yolov4-leaky.weights'
 
 net = cv.dnn.readNetFromDarknet(modelConfiguration, modelWeights)
 net.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)
@@ -82,11 +82,19 @@ def captureMouseClick(event, x, y, flags, param):
 cv.namedWindow("Webcam capture")                            # create a window
 cv.setMouseCallback("Webcam capture", captureMouseClick)    # capture mouse clicks for selecting objects
 
+windowWidth = cv.getWindowImageRect("Webcam capture")[2]
+windowHeight = cv.getWindowImageRect("Webcam capture")[3]
+
 # helper func
 def drawPoint(img, point):
     if point[0] is not None and point[1] is not None:
-        cv.rectangle(img, (point[0], point[1]), (point[0]+2, point[1]+2), RED, 2)
+        cv.line(img, (point[0], point[1]+5), (point[0], point[1]-5), RED, 1)
+        cv.line(img, (point[0]+5, point[1]), (point[0]-5, point[1]), RED, 1)
 
+        cv.line(img, (int(windowWidth/2), int(windowHeight/2)), (point[0], point[1]), RED, 1)
+
+        cv.line(img, (int(windowWidth/2)+5, int(windowHeight/2)), (int(windowWidth/2)-5, int(windowHeight/2)), RED, 1)
+        cv.line(img, (int(windowWidth/2), int(windowHeight/2)+5), (int(windowWidth/2), int(windowHeight/2)-5), RED, 1)
 
 while True:
     success, img = cap.read()
