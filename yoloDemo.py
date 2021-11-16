@@ -1,7 +1,8 @@
 import cv2 as cv
 import numpy as np
 
-RED = (255, 0, 0)
+BLUE = (255, 0, 0)
+RED = (0,0,255)
 
 cap = cv.VideoCapture(0)    # camera selection
 whT = 320       # yolov3 image size
@@ -21,7 +22,17 @@ net.setPreferableTarget(cv.dnn.DNN_TARGET_CPU)
 confidenceThresh = 0.5  # min confidence to draw a box
 nmsThreshold = 0.1      # lower num = more aggressive, fewer boxes
 
+refPt = [None,None]
+
+def isInBox(pointX, pointY, boundX, boundY, boundW, boundH):
+    if pointX is None or pointY is None:
+        return False
+    if pointX < boundX or pointY < boundY or pointX > boundX + boundW or pointY > boundY + boundH:
+        return False
+    return True
+
 def findObjects(outputs,img):
+    global refPt
     hT, wT, cT = img.shape
     boundingBoxes = []
     classIdxs = []
@@ -46,12 +57,30 @@ def findObjects(outputs,img):
         box = boundingBoxes[i]
         x,y,w,h = box[0], box[1], box[2], box[3]
 
-        cv.rectangle(img, (x,y), (x+w, y+h), RED, 2)
+        if isInBox(refPt[0], refPt[1], x,y,w,h):
+            cv.rectangle(img, (x,y), (x+w, y+h), RED, 2)
+            refPt = [int(x+0.5*w), int(y+0.5*h)]
+        else:
+            cv.rectangle(img, (x,y), (x+w, y+h), BLUE, 2)
         cv.putText(
             img, 
             f'{classNames[classIdxs[i]]} {int(confidences[i]*100)}%',
-            (x,y-10), cv.FONT_HERSHEY_SIMPLEX, 0.6, RED, 2
+            (x,y-10), cv.FONT_HERSHEY_SIMPLEX, 0.6, BLUE, 2
         )
+
+def captureMouseClick(event, x, y, flags, param):
+    global refPt
+    if event == cv.EVENT_LBUTTONUP:
+        refPt = [x,y]
+    elif event == cv.EVENT_RBUTTONUP:
+        refPt = [None, None]
+
+cv.namedWindow("Webcam capture")
+cv.setMouseCallback("Webcam capture", captureMouseClick)
+
+def drawPoint(img, point):
+    if point[0] is not None and point[1] is not None:
+        cv.rectangle(img, (point[0], point[1]), (point[0]+2, point[1]+2), RED, 2)
 
 while True:
     success, img = cap.read()
@@ -65,6 +94,7 @@ while True:
     outputs = net.forward(outputNames)
 
     findObjects(outputs, img)
-
-    cv.imshow('Webcam Capture', img)
+    drawPoint(img, refPt)
+    
+    cv.imshow("Webcam capture", img)
     cv.waitKey(1)
