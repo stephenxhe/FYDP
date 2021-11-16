@@ -1,6 +1,9 @@
 import cv2 as cv
 import numpy as np
 
+# count = cv.cuda.getCudaEnabledDeviceCount()
+# print(count)
+
 BLUE = (255, 0, 0)
 RED = (0,0,255)
 
@@ -54,19 +57,20 @@ def findObjects(outputs,img):
     indicesToKeep = cv.dnn.NMSBoxes(boundingBoxes, confidences, confidenceThresh, nmsThreshold)       # removes overlapping boxes
 
     for i in indicesToKeep:
-        box = boundingBoxes[i]
-        x,y,w,h = box[0], box[1], box[2], box[3]
+        if classNames[classIdxs[i]] == 'car' or classNames[classIdxs[i]] == 'bus' or classNames[classIdxs[i]] == 'truck':
+            box = boundingBoxes[i]
+            x,y,w,h = box[0], box[1], box[2], box[3]
 
-        if isInBox(refPt[0], refPt[1], x,y,w,h):
-            cv.rectangle(img, (x,y), (x+w, y+h), RED, 2)
-            refPt = [int(x+0.5*w), int(y+0.5*h)]
-        else:
-            cv.rectangle(img, (x,y), (x+w, y+h), BLUE, 2)
-        cv.putText(
-            img, 
-            f'{classNames[classIdxs[i]]} {int(confidences[i]*100)}%',
-            (x,y-10), cv.FONT_HERSHEY_SIMPLEX, 0.6, BLUE, 2
-        )
+            if isInBox(refPt[0], refPt[1], x,y,w,h):
+                cv.rectangle(img, (x,y), (x+w, y+h), RED, 2)
+                refPt = [int(x+0.5*w), int(y+0.5*h)]
+            else:
+                cv.rectangle(img, (x,y), (x+w, y+h), BLUE, 2)
+            cv.putText(
+                img, 
+                f'{classNames[classIdxs[i]]} {int(confidences[i]*100)}%',
+                (x,y-10), cv.FONT_HERSHEY_SIMPLEX, 0.6, BLUE, 2
+            )
 
 def captureMouseClick(event, x, y, flags, param):
     global refPt
@@ -82,6 +86,7 @@ cv.setMouseCallback("Webcam capture", captureMouseClick)    # capture mouse clic
 def drawPoint(img, point):
     if point[0] is not None and point[1] is not None:
         cv.rectangle(img, (point[0], point[1]), (point[0]+2, point[1]+2), RED, 2)
+
 
 while True:
     success, img = cap.read()
