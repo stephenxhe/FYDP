@@ -5,7 +5,7 @@ BLUE = (255, 0, 0)
 RED = (0,0,255)
 
 cap = cv.VideoCapture(0)    # camera selection
-whT = 320       # yolov3 image size
+whT = 320                   # yolov3 image size
 
 classesFile = 'coco.names'
 classNames = []
@@ -22,7 +22,7 @@ net.setPreferableTarget(cv.dnn.DNN_TARGET_CPU)
 confidenceThresh = 0.5  # min confidence to draw a box
 nmsThreshold = 0.1      # lower num = more aggressive, fewer boxes
 
-refPt = [None,None]
+refPt = [None,None]     # this is what we will send to the aiming / LIDAR
 
 def isInBox(pointX, pointY, boundX, boundY, boundW, boundH):
     if pointX is None or pointY is None:
@@ -75,26 +75,28 @@ def captureMouseClick(event, x, y, flags, param):
     elif event == cv.EVENT_RBUTTONUP:
         refPt = [None, None]
 
-cv.namedWindow("Webcam capture")
-cv.setMouseCallback("Webcam capture", captureMouseClick)
+cv.namedWindow("Webcam capture")                            # create a window
+cv.setMouseCallback("Webcam capture", captureMouseClick)    # capture mouse clicks for selecting objects
 
+# helper func
 def drawPoint(img, point):
     if point[0] is not None and point[1] is not None:
         cv.rectangle(img, (point[0], point[1]), (point[0]+2, point[1]+2), RED, 2)
 
 while True:
     success, img = cap.read()
-
-    blob = cv.dnn.blobFromImage(img, 1/255, (whT, whT), [0,0,0], 1, crop=False)      # read docs for params
-    net.setInput(blob)
-
-    layerNames = net.getLayerNames()
-    outputNames = [layerNames[i-1] for i in net.getUnconnectedOutLayers()]
     
-    outputs = net.forward(outputNames)
+    if success:
+        blob = cv.dnn.blobFromImage(img, 1/255, (whT, whT), [0,0,0], 1, crop=False)      # read docs for params
+        net.setInput(blob)
 
-    findObjects(outputs, img)
-    drawPoint(img, refPt)
-    
-    cv.imshow("Webcam capture", img)
-    cv.waitKey(1)
+        layerNames = net.getLayerNames()
+        outputNames = [layerNames[i-1] for i in net.getUnconnectedOutLayers()]
+        
+        outputs = net.forward(outputNames)
+
+        findObjects(outputs, img)
+        drawPoint(img, refPt)
+        
+        cv.imshow("Webcam capture", img)
+        cv.waitKey(1)
