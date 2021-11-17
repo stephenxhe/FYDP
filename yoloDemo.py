@@ -1,9 +1,6 @@
 import cv2 as cv
 import numpy as np
 
-# count = cv.cuda.getCudaEnabledDeviceCount()
-# print(count)
-
 BLUE = (255, 0, 0)
 RED = (0,0,255)
 
@@ -82,19 +79,22 @@ def captureMouseClick(event, x, y, flags, param):
 cv.namedWindow("Webcam capture")                            # create a window
 cv.setMouseCallback("Webcam capture", captureMouseClick)    # capture mouse clicks for selecting objects
 
-windowWidth = cv.getWindowImageRect("Webcam capture")[2]
-windowHeight = cv.getWindowImageRect("Webcam capture")[3]
+windowCenterX = int(cv.getWindowImageRect("Webcam capture")[2]/2)
+windowCenterY = int(cv.getWindowImageRect("Webcam capture")[3]/2)
+lineWidth = 10
 
 # helper func
 def drawPoint(img, point):
     if point[0] is not None and point[1] is not None:
-        cv.line(img, (point[0], point[1]+5), (point[0], point[1]-5), RED, 1)
-        cv.line(img, (point[0]+5, point[1]), (point[0]-5, point[1]), RED, 1)
+        cv.line(img, (point[0], point[1]+lineWidth), (point[0], point[1]-lineWidth), RED, 2)
+        cv.line(img, (point[0]+lineWidth, point[1]), (point[0]-lineWidth, point[1]), RED, 2)
 
-        cv.line(img, (int(windowWidth/2), int(windowHeight/2)), (point[0], point[1]), RED, 1)
+        cv.line(img, (windowCenterX, windowCenterY), (point[0], point[1]), RED, 2)
 
-        cv.line(img, (int(windowWidth/2)+5, int(windowHeight/2)), (int(windowWidth/2)-5, int(windowHeight/2)), RED, 1)
-        cv.line(img, (int(windowWidth/2), int(windowHeight/2)+5), (int(windowWidth/2), int(windowHeight/2)-5), RED, 1)
+        cv.line(img, (windowCenterX+lineWidth, windowCenterY), (windowCenterX-lineWidth, windowCenterY), RED, 2)
+        cv.line(img, (windowCenterX, windowCenterY+lineWidth), (windowCenterX, windowCenterY-lineWidth), RED, 2)
+
+        cv.putText(img, f'x{point[0]-windowCenterX} y{point[1]-windowCenterY}', (windowCenterX+10,windowCenterY-10), cv.FONT_HERSHEY_SIMPLEX, 0.6, RED, 2)
 
 while True:
     success, img = cap.read()
