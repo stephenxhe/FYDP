@@ -19,7 +19,7 @@ def tof_thread():
 def serial_thread():
     print("serial thread")
 
-arduino = serial.Serial(port='COM5', baudrate=115200, timeout=.1)
+arduino = serial.Serial(port='COM4', baudrate=115200, timeout=.1)
 
 BLUE = (255, 0, 0)
 RED = (0,0,255)
@@ -104,10 +104,12 @@ def mouseCallback(event, x, y, flags, param):
     if event == cv.EVENT_LBUTTONUP:
         refPt = [x,y]
 
-        # thetaOut = int((((x-windowCenterX)/windowCenterX)*45) + 45)
-        # arduino.write(bytes(str(thetaOut), 'utf-8'))
+        yaw = int((((x-windowCenterX)/windowCenterX)*45) + 45)
+        pitch = int((((windowCenterY-y)/windowCenterY)*25) + 25)
+
+        arduino.write(bytes(str(pitch), 'utf-8'))
         # time.sleep(0.5)
-        # print(arduino.readline())
+        print(arduino.readline())
 
     elif event == cv.EVENT_RBUTTONUP:
         refPt = [None, None]
@@ -128,8 +130,6 @@ def drawPoint(img, point):
         cv.line(img, (windowCenterX, windowCenterY), (point[0], point[1]), RED, 2)
         cv.putText(img, f'x{point[0]-windowCenterX} y{point[1]-windowCenterY}', (windowCenterX+10,windowCenterY-10), cv.FONT_HERSHEY_SIMPLEX, 0.6, RED, 2)
 
-        # print((point[0]-windowCenterX)/windowCenterX)
-
 pTime = 0
 while True:
     success, img = cap.read()
@@ -143,7 +143,7 @@ while True:
         
         outputs = net.forward(outputNames)
 
-        findObjects(outputs, img)
+        # findObjects(outputs, img)
         drawPoint(img, refPt)
 
         # center cross
