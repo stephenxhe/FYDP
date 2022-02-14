@@ -8,7 +8,7 @@ void setup() {
   Serial.setTimeout(1);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
-  yawMotor.setSpeed(5);  // 10 rpm
+  yawMotor.setSpeed(10);  // 10 rpm
   delay(2000);
 }
 

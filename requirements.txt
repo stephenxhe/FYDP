@@ -1,0 +1,4 @@
+crcmod==1.7
+mediapipe==0.8.9.1
+numpy==1.21.2
+pyserial==3.5
