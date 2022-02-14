@@ -137,7 +137,7 @@ def cv_thread(queue):
             cv.waitKey(1)
 
 # rangefinder
-def tof_thread():
+def tof_thread():    
     print("tof thread")
 
 # serial
