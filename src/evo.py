@@ -1,10 +1,10 @@
+from socket import timeout
 import serial
 import serial.tools.list_ports
 import crcmod.predefined
 
 # default evo functions
 class Evo:
-
     # error code
     MAX_LIMIT_ERR_CODE = 65535      # Sensor measuring above its maximum limit
     UNABLE_TO_MEASURE_ERR_CODE = 1  # Sensor not able to measure
@@ -31,9 +31,9 @@ class Evo:
         return None
 
     def openEvo(self, portname) -> serial.Serial:
-        print("Attempting to open port {]".format(portname))
+        print("Attempting to open port {}".format(portname))
         # Open the Evo and catch any exceptions thrown by the OS
-        evo = serial.Serial(portname, baudrate=self.BAUD_RATE, time_out=self.TIME_OUT)
+        evo = serial.Serial(portname, baudrate=self.BAUD_RATE, timeout=self.TIME_OUT)
 
         # Flush in the buffer
         evo.flushInput()

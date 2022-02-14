@@ -8,7 +8,7 @@ Please install the requirements by running:
 `pip3 install requirements.txt`
 
 ## File Structure
--  `arduino`: arduino set up code
+- `arduino`: arduino set up code
 - `src`: main code
 - `config`: includes all files required for configuring parameters. Most parameter values were obtained from the following libraries:
 

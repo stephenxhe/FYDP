@@ -12,8 +12,8 @@ from queue import Queue
 
 # CONFIG FILES
 CLASSES_FILE = "./config/object.names"
-MODEL_CONFIGURATION = "./config/yolov3-tiny.cfg"
-MODEL_WEIGHTS = "./config/yolov3-tiny.weights"
+MODEL_CONFIGURATION = "./config/yolov3.cfg"
+MODEL_WEIGHTS = "./config/yolov3.weights"
 
 data_lock = Lock()
 
@@ -25,12 +25,9 @@ yaw_tolerance = 5  # [degrees]
 
 valid_targets = ["car", "bus", "person"]
 
-
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.1  # min confidence to draw a box
     NMS_THRESHOLD = 0.5  # lower num = more aggressive, fewer boxes
-    WINDOW_CENTER_X = int(cv.getWindowImageRect("Webcam capture")[2] / 2)
-    WINDOW_CENTER_Y = int(cv.getWindowImageRect("Webcam capture")[3] / 2)
 
     def __init__(self):
         self.classNames = []
@@ -42,7 +39,7 @@ class VehicleFinder:
         self.pq = Queue(maxsize=1)
         self.yq = Queue(maxsize=1)
 
-    def _set_class_names(self):
+    def set_class_names(self):
         with open(CLASSES_FILE, "rt") as f:
             self.classNames = f.read().rstrip("\n").split("\n")
 
@@ -111,6 +108,7 @@ class VehicleFinder:
 
     def findObjects(self, outputs, img):
         hT, wT, _ = img.shape
+        self.boundingBoxes, self.classIdxs, self.confidences = [], [], []
 
         for output in outputs:
             for detection in output:
@@ -139,7 +137,7 @@ class VehicleFinder:
         self.mark_vehicle(indicesToKeep, img)
 
     def _set_camera_config(self, cap):
-        cap.set(cv.CAP_PROP_FPS, 30)  # Set camera FPS to 60 FPS
+        cap.set(cv.CAP_PROP_FPS, 60)  # Set camera FPS to 60 FPS
         cap.set(
             cv.CAP_PROP_FRAME_WIDTH, 1280
         )  # Set the width of the camera image to 1280
@@ -151,8 +149,10 @@ class VehicleFinder:
         cap = cv.VideoCapture(0)  # camera selection
         self._set_camera_config(cap)
         whT = 320  # yolov3 image size
-
         cv.namedWindow("Webcam capture")
+        self.WINDOW_CENTER_X = int(cv.getWindowImageRect("Webcam capture")[2] / 2)
+        self.WINDOW_CENTER_Y = int(cv.getWindowImageRect("Webcam capture")[3] / 2)
+
         self.yq.put(self.WINDOW_CENTER_X)
         self.pq.put(self.WINDOW_CENTER_Y)
 
@@ -244,9 +244,7 @@ class VehicleFinder:
         while True:
             if self.refPt != [None, None]:
                 yaw = int((((self.refPt[0] - windowCenterX) / windowCenterX) * 45) + 45)
-                pitch = int(
-                    (((windowCenterY - self.refPt[1]) / windowCenterY) * 25) + 25
-                )
+                pitch = int((((windowCenterY - self.refPt[1]) / windowCenterY) * 25) + 25)
                 if abs(yaw - 45) > yaw_tolerance:
                     self.serial_write(str(yaw), arduino)
                     # print(f"{yaw=}")
