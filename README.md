@@ -5,7 +5,11 @@ This repository contains code for moving the pitch/yaw respectfully to aim at th
 ## To setup the repository
 Please install the requirements by running:
 
-`pip3 install requirements.txt`
+`pip3 install -r requirements.txt`
+
+To generate new `requirements.txt`
+
+`pipreqs --forced `
 
 ## File Structure
 - `arduino`: arduino set up code
