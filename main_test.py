@@ -1,7 +1,7 @@
 from src.evo import Evo
 import sys
 import cv2 as cv
-import mediapipe as mp
+# import mediapipe as mp
 import numpy as np
 import time
 import serial
@@ -12,14 +12,17 @@ from queue import Queue
 
 # CONFIG FILES
 CLASSES_FILE = "./config/object.names"
-MODEL_CONFIGURATION = "./config/yolov3.cfg"
-MODEL_WEIGHTS = "./config/yolov3.weights"
+MODEL_CONFIGURATION = "./config/yolov3-tiny.cfg"
+MODEL_WEIGHTS = "./config/yolov3-tiny.weights"
 
 data_lock = Lock()
 
 BLUE = (255, 0, 0)
 RED = (0, 0, 255)
 GREEN = (0, 255, 0)
+
+CAMERA_SELECTION = 1
+ARDUINO_COMPORT = 'COM5'
 
 yaw_tolerance = 5  # [degrees]
 
@@ -138,15 +141,11 @@ class VehicleFinder:
 
     def _set_camera_config(self, cap):
         cap.set(cv.CAP_PROP_FPS, 60)  # Set camera FPS to 60 FPS
-        cap.set(
-            cv.CAP_PROP_FRAME_WIDTH, 1280
-        )  # Set the width of the camera image to 1280
-        cap.set(
-            cv.CAP_PROP_FRAME_HEIGHT, 720
-        )  # Set the vertical width of the camera image to 720
+        # cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)  # Set the width of the camera image to 1280
+        # cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)  # Set the vertical width of the camera image to 720
 
     def cv_thread(self):
-        cap = cv.VideoCapture(0)  # camera selection
+        cap = cv.VideoCapture(CAMERA_SELECTION)  # camera selection
         self._set_camera_config(cap)
         whT = 320  # yolov3 image size
         cv.namedWindow("Webcam capture")
@@ -273,7 +272,7 @@ def tof_thread():
     while True:
         try:
             dist = evo_obj.get_evo_range(evo)
-            print(f"{dist} m")
+            # print(f"{dist} m")
         except serial.serialutil.SerialException:
             print("ERROR: Device disconnected (or multiple access on port). Exiting...")
 
@@ -281,7 +280,7 @@ def tof_thread():
 if __name__ == "__main__":
     # Testing
     print("-----------STARTING---------------")
-    arduino = serial.Serial(port="COM4", baudrate=115200, timeout=0.1)
+    arduino = serial.Serial(port=ARDUINO_COMPORT, baudrate=115200, timeout=0.1)
 
     vehicle_finder = VehicleFinder()
     cvThread = threading.Thread(target=vehicle_finder.cv_thread)
@@ -293,4 +292,4 @@ if __name__ == "__main__":
 
     cvThread.start()
     serialThread.start()
-    evoThread.start()
+    # evoThread.start()
