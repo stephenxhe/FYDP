@@ -1,44 +1,46 @@
 #include <AFMotor.h>
 const int stepsPerRevolution = 200;
 const float degreeToStep = 1.8;
-AF_Stepper yawMotor(stepsPerRevolution, 1);
+
+AF_Stepper pitchMotor(stepsPerRevolution, 1);
+AF_Stepper yawMotor(stepsPerRevolution, 2);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(250000);
   Serial.setTimeout(1);
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-  yawMotor.setSpeed(10);  // 10 rpm
-  delay(2000);
+  yawMotor.setSpeed(5);  // 10 rpm
+  pitchMotor.setSpeed(5);
 }
 
-int yaw;
-int cur_x;
-int cur_y;
-int global_x = 90;
-int global_y = 0;// set cur position to global center
-bool running = true;
-
 void loop() {
+//  Serial.readStringUntil('\n');
   while (!Serial.available());
-
-  if (running == true) {
-    yaw = (Serial.readString().toInt());
   
+  int serial_in = Serial.readString().toInt();
+
+  if (serial_in) {
+    byte yaw = serial_in >> 0 & 0b11111111;
+    byte pitch = serial_in >> 8 & 0b11111111;
+    if (pitch<50 && pitch>0){
+      if (pitch > 25) {
+        pitchMotor.step((pitch-25)/degreeToStep, BACKWARD, INTERLEAVE); 
+      } else if (pitch < 25) {
+        pitchMotor.step((25-pitch)/degreeToStep, FORWARD, INTERLEAVE); 
+      }
+    }
+    
     if (yaw<90 && yaw>0){
       if (yaw > 45) {
-//        cur_x = global_x + (yaw-45);
-        if (cur_x < 180 || true){
-          global_x = cur_x;
-          yawMotor.step((yaw-45)/degreeToStep, BACKWARD, INTERLEAVE); 
-        }     
+//        Serial.print(yaw);
+//        Serial.print(" forward");
+//        Serial.println();
+        yawMotor.step((yaw-45)/degreeToStep, BACKWARD, INTERLEAVE); 
       } else if (yaw < 45) {
-//        cur_x = global_x - (45-yaw);
-        if (cur_x > 0 || true){
-          global_x = cur_x;
-          yawMotor.step((45-yaw)/degreeToStep, FORWARD, INTERLEAVE); 
-        }
+//        Serial.print(yaw);
+//        Serial.print(" backward");
+//        Serial.println();
+        yawMotor.step((45-yaw)/degreeToStep, FORWARD, INTERLEAVE); 
       }
-    } 
+    }
   }
 }
