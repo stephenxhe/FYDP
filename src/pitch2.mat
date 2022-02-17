@@ -1,0 +1,31 @@
+clc;
+clear all;
+
+A = 0.00202682991; %m^2
+C = .2; %Drag Coefficient of a bullet
+rho = 1.2; %kg/m^3 (density of air)
+c_d =rho * C * A/2
+
+v_launch = 70;  % launch velocity
+m = 0.10;    % mass in kg
+g = 9.81;  % gravity in m/s
+x_range = 50;   % goal range (x-direction)
+y_range = 0;   % goal range (y-direction)
+
+syms t theta
+vx = v_launch * cos(theta);
+vy = v_launch * sin(theta);
+
+fx = -c_d * v_launch * vx;
+fy = -c_d * v_launch * vy - m * g;
+
+ax = fx / m;    % acceleration in x-direction
+ay = fy / m;    % acceleration in y-direction
+
+x_dist = vx.* t + 0.5 * ax * t.^2;
+y_dist = vy.* t + 0.5 * ay * t.^2;
+
+sol=solve(x_dist == x_range, y_dist == y_range)
+theta_in_deg = rad2deg(double(sol.theta))
+theta = sol.theta;
+t_value = double(sol.t)
