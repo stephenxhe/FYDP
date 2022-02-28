@@ -27,7 +27,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['bottle', 'backpack', 'stop sign', 'person', 'car']
+valid_targets = ['bottle', 'backpack', 'stop sign', 'car', 'bus', 'truck']
 
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
@@ -300,16 +300,16 @@ def tof_thread():
 if __name__ == "__main__":
     # Testing
     print("-----------STARTING---------------")
-    arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
+    # arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
 
     vehicle_finder = VehicleFinder()
     cvThread = threading.Thread(target=vehicle_finder.cv_thread)
-    serialThread = threading.Thread(
-        target=vehicle_finder.serial_thread,
-        args=(vehicle_finder.pq, vehicle_finder.yq, arduino),
-    )
+    # serialThread = threading.Thread(
+    #     target=vehicle_finder.serial_thread,
+    #     args=(vehicle_finder.pq, vehicle_finder.yq, arduino),
+    # )
     evoThread = threading.Thread(target=tof_thread, args=())
 
     cvThread.start()
-    serialThread.start()
-    evoThread.start()
+    # serialThread.start()
+    # evoThread.start()

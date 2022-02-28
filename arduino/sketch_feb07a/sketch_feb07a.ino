@@ -1,6 +1,7 @@
-#include <AFMotor.h>
-const int stepsPerRevolution = 200;
-const float degreeToStep = 1.8;
+//#include <AFMotor.h>
+#include <Servo.h>
+//const int stepsPerRevolution = 200;
+//const float degreeToStep = 1.8;
 
 AF_Stepper pitchMotor(stepsPerRevolution, 1);
 AF_Stepper yawMotor(stepsPerRevolution, 2);
@@ -30,15 +31,9 @@ void loop() {
     }
     
     if (yaw<90 && yaw>0){
-      if (yaw > 45) {
-//        Serial.print(yaw);
-//        Serial.print(" forward");
-//        Serial.println();
+      if (yaw > 45) {\
         yawMotor.step((yaw-45)/degreeToStep, BACKWARD, INTERLEAVE); 
       } else if (yaw < 45) {
-//        Serial.print(yaw);
-//        Serial.print(" backward");
-//        Serial.println();
         yawMotor.step((45-yaw)/degreeToStep, FORWARD, INTERLEAVE); 
       }
     }

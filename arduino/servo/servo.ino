@@ -10,16 +10,19 @@ int triggerPin = 6;
 Servo Yaw;
 Servo Pitch;
 Servo Trigger;
+
 void setup() {
     // We need to attach the servo to the used pin number
     Yaw.attach(yawPin);
     Pitch.attach(pitchPin);
     Trigger.attach(triggerPin);
 
-    Yaw.write(0);
+    Yaw.write(90);
     Pitch.write(90);                  // init pitch to default position
     Trigger.writeMicroseconds(2500);  // init trigger to default position
-    Serial.begin(9600);
+    
+    Serial.begin(250000);
+    Serial.setTimeout(1);
 }
 
 void fire() {
@@ -44,29 +47,11 @@ void moveYaw(int angle) {
 }
 
 void loop() {
-    moveYaw(60);
-    delay(500);
-    fire();
-    delay(2000);
-    moveYaw(120);
-    delay(500);
-    fire();
-    delay(2000);
-    moveYaw(90);
-    delay(500);
-    fire();
-    delay(2000);
+  while (!Serial.available());
+  int serial_in = Serial.readString().toInt();
 
-    movePitch(100);
-    delay(500);
-    fire();
-    delay(2000);
-    movePitch(80);
-    delay(500);
-    fire();
-    delay(2000);
-    movePitch(90);
-    delay(500);
-    fire();
-    delay(2000);
+  if (serial_in) {
+    byte yaw = serial_in >> 0 & 0b11111111;
+    byte pitch = serial_in >> 8 & 0b11111111;
+  }
 }
