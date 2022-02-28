@@ -27,7 +27,8 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['bottle', 'backpack', 'stop sign', 'person', 'car']
+valid_targets = ["bottle", "backpack", "stop sign", "person", "car"]
+
 
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
@@ -141,10 +142,14 @@ class VehicleFinder:
         self.mark_vehicle(indicesToKeep, img)
 
     def _set_camera_config(self, cap):
-        print('set camera config')
+        print("set camera config")
         # cap.set(cv.CAP_PROP_FPS, 60)  # Set camera FPS to 60 FPS
-        cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)  # Set the width of the camera image to 1280
-        cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)  # Set the vertical width of the camera image to 720
+        cap.set(
+            cv.CAP_PROP_FRAME_WIDTH, 1280
+        )  # Set the width of the camera image to 1280
+        cap.set(
+            cv.CAP_PROP_FRAME_HEIGHT, 720
+        )  # Set the vertical width of the camera image to 720
 
     def cv_thread(self):
         cap = cv.VideoCapture(0)  # camera selection
@@ -164,7 +169,15 @@ class VehicleFinder:
                     cv.line(img, (0, y), (2 * self.WINDOW_CENTER_X, y), GREEN, 2)
 
                     with data_lock:
-                        cv.putText(img, f"Distance: {distance} m", (x, y+20), cv.FONT_HERSHEY_SIMPLEX, 0.6, GREEN, 2,)
+                        cv.putText(
+                            img,
+                            f"Distance: {distance} m",
+                            (x, y + 20),
+                            cv.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            GREEN,
+                            2,
+                        )
                 else:
                     # vertical line
                     cv.line(img, (x, 0), (x, 2 * self.WINDOW_CENTER_Y), RED, 2)
@@ -172,10 +185,20 @@ class VehicleFinder:
                     cv.line(img, (0, y), (2 * self.WINDOW_CENTER_X, y), RED, 2)
 
                     with data_lock:
-                        cv.putText(img, f"Distance: {distance} m", (x, y+20), cv.FONT_HERSHEY_SIMPLEX, 0.6, RED, 2,)
+                        cv.putText(
+                            img,
+                            f"Distance: {distance} m",
+                            (x, y + 20),
+                            cv.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            RED,
+                            2,
+                        )
 
         cv.namedWindow("Webcam capture", flags=WINDOW_AUTOSIZE)
-        cv.setMouseCallback("Webcam capture", self.mouseCallback)  # capture mouse clicks for selecting objects
+        cv.setMouseCallback(
+            "Webcam capture", self.mouseCallback
+        )  # capture mouse clicks for selecting objects
         self.WINDOW_CENTER_X = int(cv.getWindowImageRect("Webcam capture")[2] / 2)
         self.WINDOW_CENTER_Y = int(cv.getWindowImageRect("Webcam capture")[3] / 2)
 
@@ -193,7 +216,9 @@ class VehicleFinder:
             success, img = cap.read()
 
             if success:
-                blob = cv.dnn.blobFromImage(img, 1 / 255, (whT, whT), [0, 0, 0], 1, crop=False)  # read docs for params
+                blob = cv.dnn.blobFromImage(
+                    img, 1 / 255, (whT, whT), [0, 0, 0], 1, crop=False
+                )  # read docs for params
                 net.setInput(blob)
 
                 layerNames = net.getLayerNames()
@@ -249,11 +274,13 @@ class VehicleFinder:
                 yaw = int((((self.refPt[0] - windowCenterX) / windowCenterX) * 45) + 45)
                 if abs(yaw - 45) < 4:
                     yaw = 45
-                
-                pitch = int((((windowCenterY - self.refPt[1]) / windowCenterY) * 25) + 25)
+
+                pitch = int(
+                    (((windowCenterY - self.refPt[1]) / windowCenterY) * 25) + 25
+                )
                 if abs(pitch - 25) < 4:
                     pitch = 25
-                
+
                 # print(f"cpu send {pitch=} {yaw=}")
 
                 pitch = pitch << 8
@@ -283,7 +310,7 @@ def tof_thread():
         sys.exit()
     else:
         evo = evo_obj.openEvo(port)
-    
+
     # main loop
     while True:
         try:

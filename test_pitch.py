@@ -1,5 +1,5 @@
-# test_pitch
 from src.pitch import Trajectory
 
 traj = Trajectory()
-print(traj.get_pitch())
+print(traj.x_range, traj.y_range)
+print(traj.solve())

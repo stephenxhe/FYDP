@@ -28,6 +28,7 @@ def tof_thread():
         except serial.serialutil.SerialException:
             print("ERROR: Device disconnected (or multiple access on port). Exiting...")
 
+
 print("-----------STARTING---------------")
 arduino = serial.Serial(port="COM4", baudrate=115200, timeout=0.1)
 
