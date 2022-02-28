@@ -27,12 +27,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-<<<<<<< HEAD
 valid_targets = ['bottle', 'backpack', 'stop sign', 'car', 'bus', 'truck']
-=======
-valid_targets = ["bottle", "backpack", "stop sign", "person", "car"]
-
->>>>>>> d8f20d273d1e66e2cb249ad9b387b5040e889aa7
 
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
@@ -173,15 +168,7 @@ class VehicleFinder:
                     cv.line(img, (0, y), (2 * self.WINDOW_CENTER_X, y), GREEN, 2)
 
                     with data_lock:
-                        cv.putText(
-                            img,
-                            f"Distance: {distance} m",
-                            (x, y + 20),
-                            cv.FONT_HERSHEY_SIMPLEX,
-                            0.6,
-                            GREEN,
-                            2,
-                        )
+                        cv.putText(img, f"Distance: {distance} m", (x, y + 20), cv.FONT_HERSHEY_SIMPLEX, 0.6, GREEN, 2,)
                 else:
                     # vertical line
                     cv.line(img, (x, 0), (x, 2 * self.WINDOW_CENTER_Y), RED, 2)
@@ -259,12 +246,10 @@ class VehicleFinder:
 
     # serial helper functions
     def serial_write(self, data: str, device: serial.Serial):
-        # print(f"serial_write: {data}")
         device.write(bytes(data, "utf-8"))
 
     def serial_read(self, device: serial.Serial):
         res = device.readline()
-        # print(f"serial_read: {res}")
         return res
 
     # serial
@@ -275,6 +260,8 @@ class VehicleFinder:
         # main loop
         while True:
             if self.refPt != [None, None]:
+                # pitch and yaw are sent as OFFSETS from the current position
+                
                 yaw = int((((self.refPt[0] - windowCenterX) / windowCenterX) * 45) + 45)
                 if abs(yaw - 45) < 4:
                     yaw = 45
@@ -285,20 +272,13 @@ class VehicleFinder:
                 if abs(pitch - 25) < 4:
                     pitch = 25
 
-                # print(f"cpu send {pitch=} {yaw=}")
-
                 pitch = pitch << 8
                 data = pitch | yaw
                 self.serial_write(str(data) + "\n", arduino)
-                # print(f"cpu send yaw: {data >> 0 & 0b11111111} pitch: {data >> 8 & 0b11111111}")
                 time.sleep(0.1)
-                _ = self.serial_read(arduino)
+                # _ = self.serial_read(arduino)
 
             time.sleep(0.25)
-
-    # def exitfunc(self, arduino: serial.Serial):
-    #     arduino.write(bytes("exiting", "utf-8"))
-
 
 # rangefinder
 def tof_thread():
