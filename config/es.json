@@ -1,0 +1,20 @@
+{
+  "newFeatureNotification": "{\"0.3.3\":1,\"0.3.5\":1}",
+  "autoBackup": "{\"createdTime\":1633276105017,\"latestBackupTime\":1644603836058,\"count\":15,\"frequency\":7,\"isAutoBackup\":1}",
+  "emojiList": "[\"2705\",\"2b50\",\"274c\",\"2753\",\"1f449\"]",
+  "is_emoji": "1",
+  "customization": "{}",
+  "noteKeyList": "[\"note_1630288828908\"]",
+  "noteListMenuStatus": "1",
+  "note_1630288828908": "{\"id\":1630288828908,\"createdTime\":1630288789662,\"lastUpdatedTime\":1642112612885,\"text\":\"\",\"cursorPosition\":0}",
+  "is_setBackupReminder": "1",
+  "is_darkmode": "1",
+  "uuid": "10c47e73-a310-4d20-b02a-337dac6810cc",
+  "is_quotes": "1",
+  "rated": "false",
+  "currentVersion": "0.3.5",
+  "openTimesCount": "1399",
+  "active_note": "1630288828908",
+  "createdNotesCount": "1",
+  "accountCreatedTime": "1630288789662"
+}

@@ -27,7 +27,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['bottle', 'backpack', 'stop sign', 'person', 'car']
+valid_targets = ['bottle', 'backpack', 'person', 'car']
 
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
@@ -99,16 +99,9 @@ class VehicleFinder:
                         )
 
                 elif self.refPt[0] is None and self.refPt[1] is None:
+                    text = f"{self.classNames[self.classIdxs[i]]} {int(self.confidences[i]*100)}%"
                     cv.rectangle(img, (x, y), (x + w, y + h), BLUE, 2)
-                    cv.putText(
-                        img,
-                        f"{self.classNames[self.classIdxs[i]]} {int(self.confidences[i]*100)}%",
-                        (x, y - 10),
-                        cv.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        BLUE,
-                        2,
-                    )
+                    cv.putText(img, text, (x, y - 10), cv.FONT_HERSHEY_SIMPLEX, 0.6, BLUE, 2,)
 
     def findObjects(self, outputs, img):
         hT, wT, _ = img.shape

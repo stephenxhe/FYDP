@@ -8,7 +8,7 @@ AF_Stepper yawMotor(stepsPerRevolution, 2);
 void setup() {
   Serial.begin(250000);
   Serial.setTimeout(1);
-  yawMotor.setSpeed(5);  // 10 rpm
+  yawMotor.setSpeed(10);  // 10 rpm
   pitchMotor.setSpeed(5);
 }
 
