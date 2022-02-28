@@ -6,18 +6,18 @@ import crcmod.predefined
 # default evo functions
 class Evo:
     # error code
-    MAX_LIMIT_ERR_CODE = 65535      # Sensor measuring above its maximum limit
+    MAX_LIMIT_ERR_CODE = 65535  # Sensor measuring above its maximum limit
     UNABLE_TO_MEASURE_ERR_CODE = 1  # Sensor not able to measure
-    BELOW_MIN_RANGE_ERR_CODE = 0    # Sensor detecting object below minimum range
+    BELOW_MIN_RANGE_ERR_CODE = 0  # Sensor detecting object below minimum range
 
     # fixed rate
     BAUD_RATE = 115200
     TIME_OUT = 2
-    SET_TO_BINARY = (0x00, 0x11, 0x02, 0x4C)    # Send the command "Binary mode"
+    SET_TO_BINARY = (0x00, 0x11, 0x02, 0x4C)  # Send the command "Binary mode"
 
     def __init__(self):
         self.ports = list(serial.tools.list_ports.comports())
-    
+
     def findEvo(self):
         # Find Live Ports, return port name if found, NULL if not
         print("Scanning all live ports on this PC")
@@ -26,7 +26,7 @@ class Evo:
             if "5740" in p[2]:
                 print("Evo found on port " + p[0])
                 return p[0]
-        
+
         print("NULL")
         return None
 
@@ -59,7 +59,9 @@ class Evo:
                 rng = frame[1] << 8
                 rng = rng | (frame[2] & 0xFF)
             else:
-                print("CRC mismatch. Check connection or make sure only one progam access the sensor port.")
+                print(
+                    "CRC mismatch. Check connection or make sure only one progam access the sensor port."
+                )
                 return
         # Check special cases (limit values)
         else:
