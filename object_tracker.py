@@ -17,11 +17,16 @@ import tensorflow as tf
 from yolov3.utils import Load_Yolo_model, image_preprocess, postprocess_boxes, nms, draw_bbox, read_class_names
 from yolov3.configs import *
 import time
+import serial
+import sys
+import threading
 
 from deep_sort import nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 from deep_sort import generate_detections as gdet
+
+from src.evo import Evo
 
 video_path   = ""
 
@@ -29,11 +34,73 @@ BLUE = (255, 0, 0)
 RED = (0, 0, 255)
 GREEN = (0, 255, 0)
 
-class TEST:
+BAUD_RATE = 250000
+
+class VehicleFinder:
     def __init__(self):
+        if video_path:
+            self.vid = cv2.VideoCapture(video_path) # detect on video
+        else:
+            self.vid = cv2.VideoCapture(0) # detect from webcam
+            self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) # Set the width of the camera image to 1280
+            self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)  # Set the vertical width of the camera image to 720
+        self.width = int(self.vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.height = int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        # shared values
+        self.distance = -float("inf")
         self.refPt = [None, None]
     
-    def Object_tracking(self, Yolo, video_path, output_path, input_size=416, show=False, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.45, rectangle_colors='', Track_only = []):
+    def Arduino_thread(self):
+        # arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
+        pitch_tolerance = 10
+        yaw_tolerance = 5
+        # main loop
+        while True:
+            if self.refPt != [None, None]:
+                # yaw = [0:90]
+                yaw = int((self.refPt[0]/self.width)*90)
+                if abs(yaw - 45) < yaw_tolerance:
+                    yaw = 45
+                
+                # pitch = [0:50]
+                pitch = int(abs((self.refPt[1]/self.height)*50-50))
+                if abs(pitch - 25) < pitch_tolerance:
+                    pitch = 25
+
+                pitch = pitch << 8
+                data = pitch | yaw
+                # arduino.write(bytes(str(data), 'utf-8'))
+
+                time.sleep(0.1)
+                # _ = arduino.readline()
+
+            time.sleep(0.25)
+    
+    def Tof_thread(self):
+        # main thread code
+        evo_obj = Evo()
+
+        print("Starting Evo data streaming")
+        # Get the port the evo has been connected to
+        port = evo_obj.findEvo()
+
+        if port is None:
+            print("ERROR: Couldn't find the Evo. Exiting.")
+            sys.exit()
+        else:
+            evo = evo_obj.openEvo(port)
+
+        # main loop
+        while True:
+            try:
+                dist = evo_obj.get_evo_range(evo)
+                self.distance = dist
+            except serial.serialutil.SerialException:
+                print("ERROR: Device disconnected (or multiple access on port). Exiting...")
+                sys.exit()
+        
+    def Object_tracking(self, Yolo, video_path, output_path, input_size=YOLO_INPUT_SIZE, show=True, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.1, rectangle_colors=RED, Track_only = ["person"]):
         # Definition of the parameters
         max_cosine_distance = 0.7
         nn_budget = None
@@ -46,24 +113,14 @@ class TEST:
 
         times, times_2 = [], []
 
-        if video_path:
-            vid = cv2.VideoCapture(video_path) # detect on video
-        else:
-            vid = cv2.VideoCapture(0) # detect from webcam
-            vid.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) # Set the width of the camera image to 1280
-            vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)  # Set the vertical width of the camera image to 720
-
         # by default VideoCapture returns float instead of int
-        width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = int(vid.get(cv2.CAP_PROP_FPS))
+        fps = int(self.vid.get(cv2.CAP_PROP_FPS))
         codec = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(output_path, codec, fps, (width, height)) # output_path must be .mp4
+        out = cv2.VideoWriter(output_path, codec, fps, (self.width, self.height)) # output_path must be .mp4
 
         NUM_CLASS = read_class_names(CLASSES)
         key_list = list(NUM_CLASS.keys()) 
         val_list = list(NUM_CLASS.values())
-
 
         def mouseCallback(event, x, y, flags, param):
             if event == cv2.EVENT_LBUTTONUP:
@@ -75,7 +132,7 @@ class TEST:
         cv2.setMouseCallback("Output", mouseCallback)
 
         while True:
-            _, frame = vid.read()
+            _, frame = self.vid.read()
 
             try:
                 original_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -144,9 +201,13 @@ class TEST:
             if self.refPt != [None, None]:
                 # print(f"draw crosshair at {self.refPt}")
                 # vertical line
-                cv2.line(image, (self.refPt[0], 0), (self.refPt[0], height), GREEN, 2)
+                cv2.line(image, (self.refPt[0], 0), (self.refPt[0], self.height), GREEN, 2)
                 # horizontal line
-                cv2.line(image, (0, self.refPt[1]), (width, self.refPt[1]), GREEN, 2)
+                cv2.line(image, (0, self.refPt[1]), (self.width, self.refPt[1]), GREEN, 2)
+            
+            # center cross
+            cv2.line(image, (int(0.5*self.width) + 10, int(0.5*self.height)), (int(0.5*self.width) - 10, int(0.5*self.height)), BLUE, 2,)
+            cv2.line(image, (int(0.5*self.width), int(0.5*self.height) + 10), (int(0.5*self.width), int(0.5*self.height) - 10), BLUE, 2, )
 
             t3 = time.time()
             times.append(t2-t1)
@@ -164,7 +225,7 @@ class TEST:
             # draw original yolo detection
             #image = draw_bbox(image, bboxes, CLASSES=CLASSES, show_label=False, rectangle_colors=rectangle_colors, tracking=True)
 
-            print("Time: {:.2f}ms, Detection FPS: {:.1f}, total FPS: {:.1f}".format(ms, fps, fps2))
+            # print("Time: {:.2f}ms, Detection FPS: {:.1f}, total FPS: {:.1f}".format(ms, fps, fps2))
             if output_path != '': out.write(image)
             if show:
                 cv2.imshow('Output', image)
@@ -176,5 +237,13 @@ class TEST:
 
 if __name__ == "__main__":
     yolo = Load_Yolo_model()
-    tracker = TEST()
-    tracker.Object_tracking(yolo, video_path, "", input_size=YOLO_INPUT_SIZE, show=True, iou_threshold=0.1, rectangle_colors=RED, Track_only = ["person"])
+    tracker = VehicleFinder()
+
+    cvThread = threading.Thread(target=tracker.Object_tracking, args=(yolo, video_path, ""), )
+    arduinoThread = threading.Thread(target=tracker.Arduino_thread, )
+    tofThread = threading.Thread(target=tracker.Tof_thread, )
+
+    cvThread.start()
+    arduinoThread.start()
+    cvThread.start()
+    # tracker.Object_tracking(yolo, video_path, "", input_size=YOLO_INPUT_SIZE, show=True, iou_threshold=0.1, rectangle_colors=RED, Track_only = ["person"])

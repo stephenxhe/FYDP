@@ -311,14 +311,14 @@ def tof_thread():
 if __name__ == "__main__":
     # Testing
     print("-----------STARTING---------------")
-    # arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
+    arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
 
     vehicle_finder = VehicleFinder()
     cvThread = threading.Thread(target=vehicle_finder.cv_thread)
-    # serialThread = threading.Thread(
-    #     target=vehicle_finder.serial_thread,
-    #     args=(vehicle_finder.pq, vehicle_finder.yq, arduino),
-    # )
+    serialThread = threading.Thread(
+        target=vehicle_finder.serial_thread,
+        args=(vehicle_finder.pq, vehicle_finder.yq, arduino),
+    )
     evoThread = threading.Thread(target=tof_thread, args=())
 
     cvThread.start()
