@@ -8,7 +8,9 @@
 #   Description : code to track detected object from video or webcam
 #
 #================================================================
+from threading import Lock
 import os
+from turtle import width
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import cv2
 from cv2 import WINDOW_AUTOSIZE
@@ -20,6 +22,7 @@ import time
 import serial
 import sys
 import threading
+from pynput import keyboard
 
 from deep_sort import nn_matching
 from deep_sort.detection import Detection
@@ -42,40 +45,95 @@ class VehicleFinder:
             self.vid = cv2.VideoCapture(video_path) # detect on video
         else:
             self.vid = cv2.VideoCapture(0) # detect from webcam
-            self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) # Set the width of the camera image to 1280
-            self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)  # Set the vertical width of the camera image to 720
+            # self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) # Set the width of the camera image to 1280
+            # self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)  # Set the vertical width of the camera image to 720
         self.width = int(self.vid.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         # shared values
+        self.refPtLock = Lock()
         self.distance = -float("inf")
         self.refPt = [None, None]
+        self.fire = False
     
     def Arduino_thread(self):
-        # arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
-        pitch_tolerance = 10
-        yaw_tolerance = 5
-        # main loop
-        while True:
-            if self.refPt != [None, None]:
+        arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
+        arduino.flushInput()
+        arduino.flushOutput()
+        pitch_tolerance = 2
+        yaw_tolerance = 2
+
+        def on_press(key):
+            try:
+                k = key.char  # single-char keys
+            except:
+                k = key.name  # other keys
+            if k == 'space':
+                if self.refPt != [None, None]:
                 # yaw = [0:90]
-                yaw = int((self.refPt[0]/self.width)*90)
-                if abs(yaw - 45) < yaw_tolerance:
-                    yaw = 45
+                    with self.refPtLock:
+                        currX, currY = self.refPt[0], self.refPt[1]
+                    
+                    # pitch and yaw are inaccurate bc of how we're calculating it 
+                    yaw = int((currX/self.width)*90)
+                    if abs(yaw - 45) < yaw_tolerance:
+                        yaw = 45
+                    
+                    # pitch = [0:50]
+                    pitch = int((currY/self.height)*50)
+                    if abs(pitch - 25) < pitch_tolerance:
+                        pitch = 25
+
+                    print(f"{currY=} {pitch=} {currX=} {yaw=}")
+                    pitch = pitch << 8
+                    data = pitch | yaw
+
+                    if yaw == 45:
+                        time.sleep(0.01)
+                    else:
+                        arduino.write(bytes(str(data), 'utf-8'))
+                        with self.refPtLock:
+                            self.refPt = [int(self.width/2), int(self.height/2)]
+                    
+                    # while arduino.readline().decode('UTF-8') == "":
+                    #     time.sleep(0.1)
+                    # print(arduino.readline().decode('UTF-8'))
+                # time.sleep(0.5)
+
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()  # start to listen on a separate thread
+        # listener.join()  # remove if main thread is polling self.keysx``
+
+        time.sleep(5)
+        print('--- arduino ready ---')
+        # while True:
+        #     if self.refPt != [None, None]:
+        #         # yaw = [0:90]
+        #         with self.refPtLock:
+        #             currX, currY = self.refPt[0], self.refPt[1]
+        #         yaw = int((currX/self.width)*90)
+        #         if abs(yaw - 45) < yaw_tolerance:
+        #             yaw = 45
                 
-                # pitch = [0:50]
-                pitch = int(abs((self.refPt[1]/self.height)*50-50))
-                if abs(pitch - 25) < pitch_tolerance:
-                    pitch = 25
+        #         # pitch = [0:50]
+        #         pitch = int((currY/self.height)*50)
+        #         if abs(pitch - 25) < pitch_tolerance:
+        #             pitch = 25
 
-                pitch = pitch << 8
-                data = pitch | yaw
-                # arduino.write(bytes(str(data), 'utf-8'))
+        #         print(f"{currY=} {pitch=} {currX=} {yaw=}")
+        #         pitch = pitch << 8
+        #         data = pitch | yaw
 
-                time.sleep(0.1)
-                # _ = arduino.readline()
-
-            time.sleep(0.25)
+        #         if yaw == 45:
+        #             time.sleep(0.1)
+        #             continue
+        #         else:
+        #             arduino.write(bytes(str(data), 'utf-8'))
+                
+        #         while arduino.readline().decode('UTF-8') == "":
+        #             time.sleep(0.1)
+        #         print(arduino.readline().decode('UTF-8'))
+        #     time.sleep(0.5)
     
     def Tof_thread(self):
         # main thread code
@@ -100,9 +158,9 @@ class VehicleFinder:
                 print("ERROR: Device disconnected (or multiple access on port). Exiting...")
                 sys.exit()
         
-    def Object_tracking(self, Yolo, video_path, output_path, input_size=YOLO_INPUT_SIZE, show=True, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.3, iou_threshold=0.1, rectangle_colors=RED, Track_only = ["person"]):
+    def Object_tracking(self, Yolo, video_path, output_path, input_size=YOLO_INPUT_SIZE, show=True, CLASSES=YOLO_COCO_CLASSES, score_threshold=0.5, iou_threshold=0.3, rectangle_colors=RED, Track_only = ["person"]):
         # Definition of the parameters
-        max_cosine_distance = 0.7
+        max_cosine_distance = 0.5
         nn_budget = None
         
         #initialize deep sort object
@@ -124,9 +182,12 @@ class VehicleFinder:
 
         def mouseCallback(event, x, y, flags, param):
             if event == cv2.EVENT_LBUTTONUP:
-                self.refPt = [x, y]
+                with self.refPtLock:
+                    self.refPt = [x, y]
             elif event == cv2.EVENT_RBUTTONUP:
-                self.refPt = [None, None]
+                with self.refPtLock:
+                    self.refPt = [None, None]
+                print('--- clear selection ---')
 
         cv2.namedWindow("Output", flags=WINDOW_AUTOSIZE)
         cv2.setMouseCallback("Output", mouseCallback)
@@ -196,7 +257,8 @@ class VehicleFinder:
                 tracked_bboxes.append(bbox.tolist() + [tracking_id, index]) # Structure data, that we could use it with our draw_bbox function
 
             # draw detection on frame
-            image, self.refPt = draw_bbox(original_frame, tracked_bboxes, self.refPt, CLASSES=CLASSES, tracking=True)
+            with self.refPtLock:
+                image, self.refPt = draw_bbox(original_frame, tracked_bboxes, self.refPt, CLASSES=CLASSES, tracking=True)
 
             if self.refPt != [None, None]:
                 # print(f"draw crosshair at {self.refPt}")
@@ -245,5 +307,5 @@ if __name__ == "__main__":
 
     cvThread.start()
     arduinoThread.start()
-    cvThread.start()
+    # cvThread.start()
     # tracker.Object_tracking(yolo, video_path, "", input_size=YOLO_INPUT_SIZE, show=True, iou_threshold=0.1, rectangle_colors=RED, Track_only = ["person"])

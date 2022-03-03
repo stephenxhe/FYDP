@@ -12,9 +12,9 @@ from threading import Lock
 from queue import Queue
 
 # CONFIG FILES
-CLASSES_FILE = "./config/object.names"
-MODEL_CONFIGURATION = "./config/yolov4-leaky.cfg"
-MODEL_WEIGHTS = "./config/yolov4-leaky.weights"
+CLASSES_FILE = "./model_data/coco/coco.names"
+MODEL_CONFIGURATION = "./config/yolov3.cfg"
+MODEL_WEIGHTS = "./model_data/yolov3.weights"
 
 BAUD_RATE = 250000
 
@@ -27,7 +27,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['bottle', 'backpack', 'stop sign', 'car', 'bus', 'truck']
+valid_targets = ['person', 'backpack', 'stop sign', 'car', 'bus', 'truck']
 
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
@@ -267,18 +267,24 @@ class VehicleFinder:
                     yaw = 45
 
                 pitch = int(
-                    (((windowCenterY - self.refPt[1]) / windowCenterY) * 25) + 25
+                    (((self.refPt[1] - windowCenterY) / windowCenterY) * 25) + 25
                 )
                 if abs(pitch - 25) < 4:
                     pitch = 25
 
                 pitch = pitch << 8
                 data = pitch | yaw
-                self.serial_write(str(data) + "\n", arduino)
-                time.sleep(0.1)
-                # _ = self.serial_read(arduino)
+                if yaw == 45:
+                    time.sleep(0.1)
+                    continue
+                else:
+                    self.serial_write(str(data) + "\n", arduino)
 
-            time.sleep(0.25)
+                while arduino.readline().decode('UTF-8') == "":
+                    time.sleep(0.01)
+                print(arduino.readline().decode('UTF-8'))
+                # time.sleep(0.1)
+            time.sleep(0.1)
 
 # rangefinder
 def tof_thread():
@@ -322,5 +328,5 @@ if __name__ == "__main__":
     evoThread = threading.Thread(target=tof_thread, args=())
 
     cvThread.start()
-    # serialThread.start()
+    serialThread.start()
     # evoThread.start()

@@ -163,7 +163,12 @@ def draw_bbox(image, bboxes, refPt, CLASSES=YOLO_COCO_CLASSES, show_label=True, 
         # put object rectangle
         if isInBox(refPt[0], refPt[1], x1, x2, y1, y2):
             cv2.rectangle(image, (x1, y1), (x2, y2), GREEN, bbox_thick*2)
-            refPt = [int((x1+x2)/2), int((y1+y2)/2)]
+            newX, newY = int((x1+x2)/2), int((y1+y2)/2)
+
+            if abs(newX - refPt[0]) > 10:
+                refPt[0] = newX
+            if abs(newY - refPt[1]) > 10:
+                refPt[1] = newY
         else:
             cv2.rectangle(image, (x1, y1), (x2, y2), RED, bbox_thick*2)
 
