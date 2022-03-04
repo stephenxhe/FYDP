@@ -256,33 +256,49 @@ class VehicleFinder:
     def serial_thread(self, pq, yq, arduino):
         windowCenterX = yq.get()
         windowCenterY = pq.get()
+        curYaw = 90
+        curPitch = 90
 
         # main loop
         while True:
             if self.refPt != [None, None]:
                 # pitch and yaw are sent as OFFSETS from the current position
-                
-                yaw = int((((self.refPt[0] - windowCenterX) / windowCenterX) * 45) + 45)
-                if abs(yaw - 45) < 4:
-                    yaw = 45
 
-                pitch = int(
-                    (((self.refPt[1] - windowCenterY) / windowCenterY) * 25) + 25
-                )
-                if abs(pitch - 25) < 4:
-                    pitch = 25
-
-                pitch = pitch << 8
-                data = pitch | yaw
-                if yaw == 45:
-                    time.sleep(0.1)
-                    continue
-                else:
+                #Using static camera
+                yaw = abs(90-int(((self.refPt[0]/windowCenterX)*90)/2)+45)
+                pitch = abs(90-int(((self.refPt[1]/windowCenterY)*50)/2)+65 )
+                #print(f"{self.refPt[0]=} {windowCenterX=}")
+                print(f"{yaw=} {pitch=}")
+                if abs(curYaw- yaw)>4 :
+                    curYaw = yaw
+                    curPitch =pitch
+                    pitch = pitch << 8
+                    data = pitch | yaw
                     self.serial_write(str(data) + "\n", arduino)
 
-                while arduino.readline().decode('UTF-8') == "":
-                    time.sleep(0.01)
-                print(arduino.readline().decode('UTF-8'))
+                
+
+
+                # yaw = int((((self.refPt[0] - windowCenterX) / windowCenterX) * 45) + 45)
+                # if abs(yaw - 45) < 4:
+                #     yaw = 45
+
+                # pitch = int(
+                #     (((self.refPt[1] - windowCenterY) / windowCenterY) * 25) + 25
+                # )
+                # if abs(pitch - 25) < 4:
+                #     pitch = 25
+
+                
+                # if yaw == 45:
+                #     time.sleep(0.1)
+                #     continue
+                # else:
+                
+
+                # while arduino.readline().decode('UTF-8') == "":
+                #     time.sleep(0.01)
+                # print(arduino.readline().decode('UTF-8'))
                 # time.sleep(0.1)
             time.sleep(0.1)
 
