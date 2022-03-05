@@ -89,19 +89,6 @@ void loop() {
   int serialIn = Serial.readString().toInt();
   int yawIn = serialIn >> 0 & 0b11111111;
   int pitchIn = serialIn >> 8 & 0b11111111;
-
-  if (yawIn<90 && yawIn>0){
-    int newYaw = currentYaw + 45 - yawIn;
-//    if (abs(newYaw - currentYaw) > 5) {
-    moveYaw(newYaw, 10); 
-//    } else {
-//      moveYaw(currentYaw, 10);
-//    }
-  }
-
-//    if (pitchIn<50 && pitchIn>0){
-//      int newPitch = currentPitch + 25 - pitchIn;
-//      movePitch(newPitch, 10);
-//    }
+  moveYaw(yawIn, 10); 
   Serial.println(pitchIn); 
 }
