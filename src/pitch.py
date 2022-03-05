@@ -14,12 +14,12 @@ class Trajectory:
     MAX_X_RANGE = 30  #
     MAX_Y_RANGE = 0
 
-    def __init__(self):
+    def __init__(self, x_range = MAX_X_RANGE, y_range = MAX_Y_RANGE):
         self.x_range = (
-            self.MAX_X_RANGE
+            x_range
         )  # TODO: replace value with value obtained from LiDAR
         self.y_range = (
-            self.MAX_Y_RANGE
+            y_range
         )  # TODO: where are we getting the value from? (RUTVIK)
         self.pitch = 0  # pitch angle in radians
         self.yaw = 0  # yaw angle in radians
@@ -47,3 +47,4 @@ class Trajectory:
     def solve(self):
         theta, t = fsolve(self.get_pitch, (25, 1))
         print(theta, t)
+        return theta

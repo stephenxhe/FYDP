@@ -10,7 +10,7 @@ import serial.tools.list_ports
 import threading
 from threading import Lock
 from queue import Queue
-
+from src.pitch import Trajectory
 # CONFIG FILES
 CLASSES_FILE = "./model_data/coco/coco.names"
 MODEL_CONFIGURATION = "./config/yolov3.cfg"
@@ -20,6 +20,7 @@ BAUD_RATE = 250000
 
 data_lock = Lock()
 distance = 0
+theta = 0
 
 BLUE = (255, 0, 0)
 RED = (0, 0, 255)
@@ -58,12 +59,18 @@ class VehicleFinder:
         ):
             return False
         return True
+    def fire(self, x_range, y_range):
+        traj = Trajectory(distance, y_range)
+        global theta
+        theta = traj.solve()
 
     def mouseCallback(self, event, x, y, flags, param):
         if event == cv.EVENT_LBUTTONUP:
             self.refPt = [x, y]
         elif event == cv.EVENT_RBUTTONUP:
             self.refPt = [None, None]
+        elif event == cv.EVENT_MBUTTONUP:
+            self.fire(x, y)
 
     def mark_vehicle(self, indicesToKeep, img):
         for i in indicesToKeep:
@@ -263,44 +270,31 @@ class VehicleFinder:
         while True:
             if self.refPt != [None, None]:
                 # pitch and yaw are sent as OFFSETS from the current position
-
-                #Using static camera
                 yaw = abs(90-int(((self.refPt[0]/windowCenterX)*90)/2)+45)
-                pitch = abs(90-int(((self.refPt[1]/windowCenterY)*50)/2)+65 )
-                #print(f"{self.refPt[0]=} {windowCenterX=}")
-                print(f"{yaw=} {pitch=}")
+                if theta!= None:
+                    pitch = theta
+                    fire = 1
+                else:
+                    #Using static camera
+                    pitch = 90
+                    #pitch = abs(90-int(((self.refPt[1]/windowCenterY)*50)/2)+65 )
+                    #print(f"{self.refPt[0]=} {windowCenterX=}")
+                    fire = 0
+                    print(f"{yaw=} {pitch=}")
                 if abs(curYaw- yaw)>4 :
                     curYaw = yaw
                     curPitch =pitch
-                    pitch = pitch << 8
+                    pitch = pitch << 9
+                    yaw = yaw << 5
                     data = pitch | yaw
+                    data = data | fire
                     self.serial_write(str(data) + "\n", arduino)
-
-                
-
-
-                # yaw = int((((self.refPt[0] - windowCenterX) / windowCenterX) * 45) + 45)
-                # if abs(yaw - 45) < 4:
-                #     yaw = 45
-
-                # pitch = int(
-                #     (((self.refPt[1] - windowCenterY) / windowCenterY) * 25) + 25
-                # )
-                # if abs(pitch - 25) < 4:
-                #     pitch = 25
-
-                
-                # if yaw == 45:
-                #     time.sleep(0.1)
-                #     continue
-                # else:
-                
-
-                # while arduino.readline().decode('UTF-8') == "":
-                #     time.sleep(0.01)
-                # print(arduino.readline().decode('UTF-8'))
-                # time.sleep(0.1)
+                   
             time.sleep(0.1)
+
+    # def exitfunc(self, arduino: serial.Serial):
+    #     arduino.write(bytes("exiting", "utf-8"))
+
 
 # rangefinder
 def tof_thread():

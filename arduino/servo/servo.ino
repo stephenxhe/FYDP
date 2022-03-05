@@ -32,14 +32,15 @@ void setup() {
     Serial.setTimeout(1);
 }
 
-//void fire() {
-//    // firing servo has 0-270 degree swing corresponding to 500 micro-sec - 2500 micro-sec PWM
-//    Trigger.writeMicroseconds(2500);
-//    delay(350);
-//    Trigger.writeMicroseconds(2000);
-//    delay(350);
-//    Trigger.writeMicroseconds(2500);
-//}
+void fire(int angle) {
+   // firing servo has 0-270 degree swing corresponding to 500 micro-sec - 2500 micro-sec PWM
+   movePitch(angle);
+   Trigger.writeMicroseconds(2500);
+  //  delay(350);
+  //  Trigger.writeMicroseconds(2000);
+  //  delay(350);
+  //  Trigger.writeMicroseconds(2500);
+}
 
 void movePitch(int angle, int motorSpeed) {
   // limit pitch fov     
@@ -87,8 +88,12 @@ void loop() {
   while (!Serial.available());
   
   int serialIn = Serial.readString().toInt();
-  int yawIn = serialIn >> 0 & 0b11111111;
-  int pitchIn = serialIn >> 8 & 0b11111111;
+  int fire = serialIn >> 0 & 0b111111111;
+  int yawIn = serialIn >> 5 & 0b111111111;
+  int pitchIn = serialIn >> 9 & 0b111111111;
   moveYaw(yawIn, 10); 
+  if (fire == 1){
+    fire(pitchIn);
+  }
   Serial.println(pitchIn); 
 }
