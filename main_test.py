@@ -13,8 +13,8 @@ from pynput import keyboard
 
 # CONFIG FILES
 CLASSES_FILE = "./model_data/coco/coco.names"
-MODEL_CONFIGURATION = "./config/yolov3.cfg"
-MODEL_WEIGHTS = "./model_data/yolov3.weights"
+MODEL_CONFIGURATION = "./config/yolov3-tiny.cfg"
+MODEL_WEIGHTS = "./model_data/yolov3-tiny.weights"
 
 BAUD_RATE = 250000
 
@@ -28,7 +28,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['stop sign', 'car', 'bus', 'truck']
+valid_targets = ['stop sign', 'car', 'bus', 'person']
 
 viewport_width = 1280
 viewport_height = 720
@@ -50,6 +50,8 @@ class VehicleFinder:
         self.boundingBoxes = []
         self.classIdxs = []
         self.confidences = []
+        self.hasTarget = False
+        self.searching = False
 
     def set_class_names(self):
         with open(CLASSES_FILE, "rt") as f:
@@ -71,11 +73,19 @@ class VehicleFinder:
         if event == cv2.EVENT_LBUTTONUP:
             self.refPt = [x, y]
         elif event == cv2.EVENT_RBUTTONUP:
+            # if self.refPt != [centreX, centreY] and self.refPt != [None, None]:
+            #     self.refPt = [centreX, centreY]
+            # else:
             self.refPt = [None, None]
-        elif event == cv2.EVENT_MBUTTONUP:
-            self.fire(x, y)
+    
+    def watchdog(self):
+        time.sleep(5)
+        self.refPt = [None, None]
+        self.searching = False
+        pass
 
-    def mark_vehicle(self, indicesToKeep, img):
+    def mark_vehicles(self, indicesToKeep, img):
+        self.hasTarget = False
         for i in indicesToKeep:
             if self.classNames[self.classIdxs[i]] in valid_targets:
                 box = self.boundingBoxes[i]
@@ -83,41 +93,20 @@ class VehicleFinder:
 
                 if self.isInBox(self.refPt[0], self.refPt[1], x, y, w, h):
                     self.refPt = [int(x + 0.5 * w), int(y + 0.5 * h)]
+                    self.hasTarget = True
 
-                    if abs(self.refPt[0] - centreX) <= 75:
-                        cv2.rectangle(img, (x, y), (x + w, y + h), GREEN, 2)
-                        cv2.putText(
-                            img,
-                            "Target Vehicle",
-                            (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6,
-                            GREEN,
-                            2,
-                        )
-                    else:
-                        cv2.rectangle(img, (x, y), (x + w, y + h), RED, 2)
-                        cv2.putText(
-                            img,
-                            "Target Vehicle",
-                            (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6,
-                            RED,
-                            2,
-                        )
-
-                elif self.refPt[0] is None and self.refPt[1] is None:
-                    cv2.rectangle(img, (x, y), (x + w, y + h), BLUE, 2)
-                    cv2.putText(
-                        img,
-                        f"{self.classNames[self.classIdxs[i]]}",
-                        (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        BLUE,
-                        2,
-                    )
+                cv2.rectangle(img, (x, y), (x + w, y + h), RED, 2)
+        
+        if not self.hasTarget and self.refPt != [None, None] and not self.searching:
+            # none of the detections contains refPt
+            print('lost target')
+            self.searching = True
+            # TODO start the watchdog
+            # watchdog = threading.Thread(target=self.watchdog, args=())
+            # watchdog.start()
+            # start a timer, if timer reaches end then set refPt = [None, None]
+            #create a nearBox function to see if current x,y is within that tol
+            # in that time, if a box appears in a range around refPt, target that box
 
     def findObjects(self, outputs, img):
         hT, wT, _ = img.shape
@@ -147,7 +136,7 @@ class VehicleFinder:
             self.NMS_THRESHOLD,
         )  # removes overlapping boxes
 
-        self.mark_vehicle(indicesToKeep, img)
+        self.mark_vehicles(indicesToKeep, img)
 
     def _set_camera_config(self, cap, width, height):
         print("set camera config")
@@ -185,7 +174,7 @@ class VehicleFinder:
                     )
 
     def cv_thread(self):
-        cap = cv2.VideoCapture(0)  # camera selection
+        cap = cv2.VideoCapture(1)  # camera selection
         whT = 320  # yolov3 image size
 
         net = cv2.dnn.readNetFromDarknet(MODEL_CONFIGURATION, MODEL_WEIGHTS)
@@ -249,6 +238,8 @@ class VehicleFinder:
             global arduinoWarning
             arduinoWarning = True
             sys.exit()
+        
+        print(f"- Found arduino on {comport}")
 
         curYaw = 90
         curPitch = 90
@@ -274,7 +265,7 @@ class VehicleFinder:
                     pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
 
 
-                    print(f"{pitch=} {yaw=}")
+                    # print(f"{pitch=} {yaw=}")
 
                     pitch = pitch << 8
                     fire = (fire << 15) | pitch 
@@ -291,8 +282,9 @@ class VehicleFinder:
         while True:
             if self.refPt != [None, None]:
                 # pitch and yaw calcualted using fixed camera
-                yaw = abs(90-int(((self.refPt[0]/centreX)*90)/2)+45)
+                yaw = abs(90-int(((self.refPt[0]/centreX)*70)/2)+35)
                 pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
+                # print(f"{pitch=} {yaw=}")
                 fire = 0
 
                 if abs(curYaw - yaw) > 1 or abs(curPitch - pitch) > 1:

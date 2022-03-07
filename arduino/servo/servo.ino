@@ -45,12 +45,12 @@ void movePitch(int angle, int motorSpeed) {
   if (angle < 55) angle = 55;
 
   if (currentPitch < angle) {
-    for (int i = currentPitch; i < angle + 5; i++) {
+    for (int i = currentPitch; i < angle + 0; i++) {
       Pitch.write(i);
       delay(motorSpeed);
     }
   } else if (currentPitch > angle) {
-    for (int i = currentPitch; i > angle - 5; i--) {
+    for (int i = currentPitch; i > angle - 0; i--) {
       Pitch.write(i);
       delay(motorSpeed);
     }
@@ -64,8 +64,8 @@ void moveYaw(int angle, int motorSpeed) {
   // 180 degrees points to left
 
   // limit yaw fov
-  if (angle > 135) angle = 135;
-  if (angle < 45) angle = 45;
+  if (angle > 125) angle = 135;
+  if (angle < 55) angle = 45;
   
   if (currentYaw < angle) {
     for (int i = currentYaw; i < angle - 0; i++) {
@@ -96,7 +96,7 @@ void loop() {
   if (fire == 1) {
     fire_tracker();
   } else {
-    moveYaw(yawIn, 10); 
+    moveYaw(yawIn, 0); 
     movePitch(pitchIn, 10); 
   }
   
