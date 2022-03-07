@@ -1,18 +1,16 @@
 from cv2 import WINDOW_AUTOSIZE
 from src.evo import Evo
 import sys
-import cv2 as cv
-import mediapipe as mp
+import cv2
 import numpy as np
 import time
 import serial
 import serial.tools.list_ports
 import threading
 from threading import Condition, Lock
-from queue import Queue
 from src.pitch import Trajectory
-
 from pynput import keyboard
+
 # CONFIG FILES
 CLASSES_FILE = "./model_data/coco/coco.names"
 MODEL_CONFIGURATION = "./config/yolov3.cfg"
@@ -30,7 +28,16 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['backpack', 'stop sign', 'car', 'bus', 'truck']
+valid_targets = ['stop sign', 'car', 'bus', 'truck']
+
+viewport_width = 1280
+viewport_height = 720
+
+centreX = int(viewport_width/2)
+centreY = int(viewport_height/2)
+
+evoWarning = False
+arduinoWarning = False
 
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
@@ -43,8 +50,6 @@ class VehicleFinder:
         self.boundingBoxes = []
         self.classIdxs = []
         self.confidences = []
-        self.pq = Queue(maxsize=1)
-        self.yq = Queue(maxsize=1)
 
     def set_class_names(self):
         with open(CLASSES_FILE, "rt") as f:
@@ -61,15 +66,13 @@ class VehicleFinder:
         ):
             return False
         return True
- 
-       
 
     def mouseCallback(self, event, x, y, flags, param):
-        if event == cv.EVENT_LBUTTONUP:
+        if event == cv2.EVENT_LBUTTONUP:
             self.refPt = [x, y]
-        elif event == cv.EVENT_RBUTTONUP:
+        elif event == cv2.EVENT_RBUTTONUP:
             self.refPt = [None, None]
-        elif event == cv.EVENT_MBUTTONUP:
+        elif event == cv2.EVENT_MBUTTONUP:
             self.fire(x, y)
 
     def mark_vehicle(self, indicesToKeep, img):
@@ -80,38 +83,37 @@ class VehicleFinder:
 
                 if self.isInBox(self.refPt[0], self.refPt[1], x, y, w, h):
                     self.refPt = [int(x + 0.5 * w), int(y + 0.5 * h)]
-                    # print(f"{self.refPt[0]} {self.WINDOW_CENTER_X}")
 
-                    if abs(self.refPt[0] - self.WINDOW_CENTER_X) <= 75:
-                        cv.rectangle(img, (x, y), (x + w, y + h), GREEN, 2)
-                        cv.putText(
+                    if abs(self.refPt[0] - centreX) <= 75:
+                        cv2.rectangle(img, (x, y), (x + w, y + h), GREEN, 2)
+                        cv2.putText(
                             img,
                             "Target Vehicle",
                             (x, y - 10),
-                            cv.FONT_HERSHEY_SIMPLEX,
+                            cv2.FONT_HERSHEY_SIMPLEX,
                             0.6,
                             GREEN,
                             2,
                         )
                     else:
-                        cv.rectangle(img, (x, y), (x + w, y + h), RED, 2)
-                        cv.putText(
+                        cv2.rectangle(img, (x, y), (x + w, y + h), RED, 2)
+                        cv2.putText(
                             img,
                             "Target Vehicle",
                             (x, y - 10),
-                            cv.FONT_HERSHEY_SIMPLEX,
+                            cv2.FONT_HERSHEY_SIMPLEX,
                             0.6,
                             RED,
                             2,
                         )
 
                 elif self.refPt[0] is None and self.refPt[1] is None:
-                    cv.rectangle(img, (x, y), (x + w, y + h), BLUE, 2)
-                    cv.putText(
+                    cv2.rectangle(img, (x, y), (x + w, y + h), BLUE, 2)
+                    cv2.putText(
                         img,
-                        f"{self.classNames[self.classIdxs[i]]} {int(self.confidences[i]*100)}%",
+                        f"{self.classNames[self.classIdxs[i]]}",
                         (x, y - 10),
-                        cv.FONT_HERSHEY_SIMPLEX,
+                        cv2.FONT_HERSHEY_SIMPLEX,
                         0.6,
                         BLUE,
                         2,
@@ -138,7 +140,7 @@ class VehicleFinder:
                     self.boundingBoxes.append([x, y, w, h])
                     self.classIdxs.append(classIdx)
                     self.confidences.append(float(confidence))
-        indicesToKeep = cv.dnn.NMSBoxes(
+        indicesToKeep = cv2.dnn.NMSBoxes(
             self.boundingBoxes,
             self.confidences,
             self.CONFIDENCE_THRESHOLD,
@@ -147,76 +149,58 @@ class VehicleFinder:
 
         self.mark_vehicle(indicesToKeep, img)
 
-    def _set_camera_config(self, cap):
+    def _set_camera_config(self, cap, width, height):
         print("set camera config")
-        # cap.set(cv.CAP_PROP_FPS, 60)  # Set camera FPS to 60 FPS
-        cap.set(
-            cv.CAP_PROP_FRAME_WIDTH, 1280
-        )  # Set the width of the camera image to 1280
-        cap.set(
-            cv.CAP_PROP_FRAME_HEIGHT, 720
-        )  # Set the vertical width of the camera image to 720
+        # cap.set(cv2.CAP_PROP_FPS, 60)  # Set camera FPS to 60 FPS
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)  # Set the width of the camera image to 1280
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)  # Set the vertical width of the camera image to 720
+
+    def drawTarget(self, img, point):
+        x, y = point[0], point[1]
+
+        if x is not None and y is not None:
+            if abs(x - centreX) <= 75:
+                # vertical line
+                cv2.line(img, (x, 0), (x, viewport_height), GREEN, 2)
+                # horizontal line
+                cv2.line(img, (0, y), (viewport_width, y), GREEN, 2)
+
+                with data_lock:
+                    cv2.putText(img, f"Distance: {distance} m", (x, y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, GREEN, 2,)
+            else:
+                # vertical line
+                cv2.line(img, (x, 0), (x, viewport_height), RED, 2)
+                # horizontal line
+                cv2.line(img, (0, y), (viewport_width, y), RED, 2)
+
+                with data_lock:
+                    cv2.putText(
+                        img,
+                        f"Distance: {distance} m",
+                        (x, y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        RED,
+                        2,
+                    )
 
     def cv_thread(self):
-        cap = cv.VideoCapture(0)  # camera selection
-        self._set_camera_config(cap)
+        cap = cv2.VideoCapture(0)  # camera selection
         whT = 320  # yolov3 image size
 
-        net = cv.dnn.readNetFromDarknet(MODEL_CONFIGURATION, MODEL_WEIGHTS)
+        net = cv2.dnn.readNetFromDarknet(MODEL_CONFIGURATION, MODEL_WEIGHTS)
 
-        def drawTarget(img, point):
-            x, y = point[0], point[1]
-
-            if x is not None and y is not None:
-                if abs(x - self.WINDOW_CENTER_X) <= 75:
-                    # vertical line
-                    cv.line(img, (x, 0), (x, 2 * self.WINDOW_CENTER_Y), GREEN, 2)
-                    # horizontal line
-                    cv.line(img, (0, y), (2 * self.WINDOW_CENTER_X, y), GREEN, 2)
-
-                    with data_lock:
-                        cv.putText(img, f"Distance: {distance} m", (x, y + 20), cv.FONT_HERSHEY_SIMPLEX, 0.6, GREEN, 2,)
-                else:
-                    # vertical line
-                    cv.line(img, (x, 0), (x, 2 * self.WINDOW_CENTER_Y), RED, 2)
-                    # horizontal line
-                    cv.line(img, (0, y), (2 * self.WINDOW_CENTER_X, y), RED, 2)
-
-                    with data_lock:
-                        cv.putText(
-                            img,
-                            f"Distance: {distance} m",
-                            (x, y + 20),
-                            cv.FONT_HERSHEY_SIMPLEX,
-                            0.6,
-                            RED,
-                            2,
-                        )
-
-        cv.namedWindow("Webcam capture", flags=WINDOW_AUTOSIZE)
-        cv.setMouseCallback(
-            "Webcam capture", self.mouseCallback
-        )  # capture mouse clicks for selecting objects
-        self.WINDOW_CENTER_X = int(cv.getWindowImageRect("Webcam capture")[2] / 2)
-        self.WINDOW_CENTER_Y = int(cv.getWindowImageRect("Webcam capture")[3] / 2)
-
-        width = int(cv.getWindowImageRect("Webcam capture")[2])
-        height = int(cv.getWindowImageRect("Webcam capture")[3])
-
-        print(f"{width=} {height=}")
-
-        self.yq.put(self.WINDOW_CENTER_X)
-        self.pq.put(self.WINDOW_CENTER_Y)
+        cv2.namedWindow("Webcam capture", flags=WINDOW_AUTOSIZE)
+        cv2.setMouseCallback("Webcam capture", self.mouseCallback)  # capture mouse clicks for selecting objects
+        self._set_camera_config(cap, viewport_width, viewport_height)
 
         # main loop
-        pTime = 0
+        global arduinoWarning, evoWarning
         while True:
             success, img = cap.read()
 
             if success:
-                blob = cv.dnn.blobFromImage(
-                    img, 1 / 255, (whT, whT), [0, 0, 0], 1, crop=False
-                )  # read docs for params
+                blob = cv2.dnn.blobFromImage(img, 1 / 255, (whT, whT), [0, 0, 0], 1, crop=False)  # read docs for params
                 net.setInput(blob)
 
                 layerNames = net.getLayerNames()
@@ -225,31 +209,27 @@ class VehicleFinder:
                 outputs = net.forward(outputNames)
 
                 self.findObjects(outputs, img)
-                drawTarget(img, self.refPt)
-
-                # show fps
-                cTime = time.time()
-                fps = 1 / (cTime - pTime)
-                pTime = cTime
+                self.drawTarget(img, self.refPt)
 
                 # # center cross
-                cv.line(
-                    img,
-                    (self.WINDOW_CENTER_X + 10, self.WINDOW_CENTER_Y),
-                    (self.WINDOW_CENTER_X - 10, self.WINDOW_CENTER_Y),
-                    BLUE,
-                    2,
-                )
-                cv.line(
-                    img,
-                    (self.WINDOW_CENTER_X, self.WINDOW_CENTER_Y + 10),
-                    (self.WINDOW_CENTER_X, self.WINDOW_CENTER_Y - 10),
-                    BLUE,
-                    2,
-                )
+                cv2.line(img, (centreX + 10, centreY), (centreX - 10, centreY), BLUE, 2)
+                cv2.line(img, (centreX, centreY + 10), (centreX, centreY - 10), BLUE, 2)
 
-                cv.imshow("Webcam capture", img)
-                cv.waitKey(1)
+                if arduinoWarning:
+                    cv2.putText(img, "WARNING: No arduino connected", (10,20), 
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        RED,
+                        2,)
+                if evoWarning:
+                    cv2.putText(img, "WARNING: No ToF sensor connected", (10,50), 
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        RED,
+                        2,)
+
+                cv2.imshow("Webcam capture", img)
+                cv2.waitKey(1)
 
     # serial helper functions
     def serial_write(self, data: str, device: serial.Serial):
@@ -260,13 +240,20 @@ class VehicleFinder:
         return res
 
     # serial
-    def serial_thread(self, pq, yq, arduino):
-        windowCenterX = yq.get()
-        windowCenterY = pq.get()
+    def serial_thread(self):
+        comport = "COM5"
+        try:
+            arduino = serial.Serial(port=comport, baudrate=BAUD_RATE, timeout=0.1)
+        except serial.serialutil.SerialException:
+            print(f"Couldn't find arduino on {comport}")
+            global arduinoWarning
+            arduinoWarning = True
+            sys.exit()
+
         curYaw = 90
         curPitch = 90
 
-        fireLock = Condition()
+        serialLock = Condition()
 
         def on_press(key):
             global theta
@@ -281,19 +268,21 @@ class VehicleFinder:
                     fire = 1
                     # theta = traj.solve()
                     # pitch = int(theta+90)
-                    yaw = abs(90-int(((self.refPt[0]/windowCenterX)*90)/2)+45)
-                    pitch = abs(90-(int((((self.refPt[1]/windowCenterY)*50))/2))+25)
 
-                    curYaw = yaw
-                    curPitch = pitch
+                    # these values shouldn't matter
+                    yaw = abs(90-int(((self.refPt[0]/centreX)*90)/2)+45)
+                    pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
+
+
+                    print(f"{pitch=} {yaw=}")
 
                     pitch = pitch << 8
                     fire = (fire << 15) | pitch 
                     data = yaw | fire
     
-                    fireLock.acquire()
+                    serialLock.acquire()
                     self.serial_write(str(data) + "\n", arduino)
-                    fireLock.release()
+                    serialLock.release()
 
         listener = keyboard.Listener(on_press=on_press)
         listener.start()
@@ -302,8 +291,8 @@ class VehicleFinder:
         while True:
             if self.refPt != [None, None]:
                 # pitch and yaw calcualted using fixed camera
-                yaw = abs(90-int(((self.refPt[0]/windowCenterX)*90)/2)+45)
-                pitch = abs(90-(int((((self.refPt[1]/windowCenterY)*50))/2))+25)
+                yaw = abs(90-int(((self.refPt[0]/centreX)*90)/2)+45)
+                pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
                 fire = 0
 
                 if abs(curYaw - yaw) > 1 or abs(curPitch - pitch) > 1:
@@ -314,9 +303,9 @@ class VehicleFinder:
                     fire = (fire << 15) | pitch 
                     data = yaw | fire
 
-                    fireLock.acquire()
+                    serialLock.acquire()
                     self.serial_write(str(data) + "\n", arduino)
-                    fireLock.release()
+                    serialLock.release()
                    
             time.sleep(0.1)
 
@@ -331,6 +320,8 @@ def tof_thread():
 
     if port is None:
         print("ERROR: Couldn't find the Evo. Exiting.")
+        global evoWarning
+        evoWarning = True
         sys.exit()
     else:
         evo = evo_obj.openEvo(port)
@@ -351,14 +342,10 @@ def tof_thread():
 if __name__ == "__main__":
     # Testing
     print("-----------STARTING---------------")
-    arduino = serial.Serial(port="COM4", baudrate=BAUD_RATE, timeout=0.1)
 
     vehicle_finder = VehicleFinder()
     cvThread = threading.Thread(target=vehicle_finder.cv_thread)
-    serialThread = threading.Thread(
-        target=vehicle_finder.serial_thread,
-        args=(vehicle_finder.pq, vehicle_finder.yq, arduino),
-    )
+    serialThread = threading.Thread(target=vehicle_finder.serial_thread, args=())
     evoThread = threading.Thread(target=tof_thread, args=())
 
     cvThread.start()

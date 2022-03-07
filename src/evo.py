@@ -20,14 +20,14 @@ class Evo:
 
     def findEvo(self):
         # Find Live Ports, return port name if found, NULL if not
-        print("Scanning all live ports on this PC")
+        print("- Scanning all live ports on this PC")
         for p in self.ports:
             # print p # This causes each port's information to be printed out.
             if "5740" in p[2]:
-                print("Evo found on port " + p[0])
+                print("- Evo found on port " + p[0])
                 return p[0]
 
-        print("NULL")
+        # print("NULL")
         return None
 
     def openEvo(self, portname) -> serial.Serial:
