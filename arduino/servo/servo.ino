@@ -19,27 +19,24 @@ void setup() {
     // We need to attach the servo to the used pin number
     Yaw.attach(yawPin);
     Pitch.attach(pitchPin);
-//    Trigger.attach(triggerPin);
+    Trigger.attach(triggerPin);
 
     currentYaw = 90;        // init yaw to default position
     currentPitch = 90;      // init pitch to default position
-//    Trigger.writeMicroseconds(2500);  // init trigger to default position
+    Trigger.writeMicroseconds(2500);  // init trigger to default position
 
     Yaw.write(currentYaw);
-    Pitch.write(100);                  
+    Pitch.write(currentPitch);                  
     
     Serial.begin(250000);
     Serial.setTimeout(1);
 }
 
-void fire(int angle) {
+void fire_tracker() {
    // firing servo has 0-270 degree swing corresponding to 500 micro-sec - 2500 micro-sec PWM
-   movePitch(angle);
-   Trigger.writeMicroseconds(2500);
-  //  delay(350);
-  //  Trigger.writeMicroseconds(2000);
-  //  delay(350);
-  //  Trigger.writeMicroseconds(2500);
+    Trigger.writeMicroseconds(2000);
+    delay(350);
+    Trigger.writeMicroseconds(2500);
 }
 
 void movePitch(int angle, int motorSpeed) {
@@ -88,12 +85,20 @@ void loop() {
   while (!Serial.available());
   
   int serialIn = Serial.readString().toInt();
-  int fire = serialIn >> 0 & 0b111111111;
-  int yawIn = serialIn >> 5 & 0b111111111;
-  int pitchIn = serialIn >> 9 & 0b111111111;
-  moveYaw(yawIn, 10); 
-  if (fire == 1){
-    fire(pitchIn);
+//  int fire = serialIn >> 15;
+//  int yawIn = serialIn & 0b111111111;
+//  int pitchIn = serialIn >> 8  & 0b011111111;
+
+  int yawIn = serialIn & 0b11111111;
+  int pitchIn = serialIn>> 8 & 0b01111111;
+  int fire = serialIn >> 15 & 0b1;
+
+  if (fire == 1) {
+    fire_tracker();
+  } else {
+    moveYaw(yawIn, 10); 
+    movePitch(pitchIn, 10); 
   }
+  
   Serial.println(pitchIn); 
 }
