@@ -8,9 +8,11 @@ import time
 import serial
 import serial.tools.list_ports
 import threading
-from threading import Lock
+from threading import Condition, Lock
 from queue import Queue
 from src.pitch import Trajectory
+
+from pynput import keyboard
 # CONFIG FILES
 CLASSES_FILE = "./model_data/coco/coco.names"
 MODEL_CONFIGURATION = "./config/yolov3.cfg"
@@ -20,7 +22,7 @@ BAUD_RATE = 250000
 
 data_lock = Lock()
 distance = 0
-theta = 0
+theta = 500
 
 BLUE = (255, 0, 0)
 RED = (0, 0, 255)
@@ -28,7 +30,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['person', 'backpack', 'stop sign', 'car', 'bus', 'truck']
+valid_targets = ['backpack', 'stop sign', 'car', 'bus', 'truck']
 
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
@@ -59,10 +61,8 @@ class VehicleFinder:
         ):
             return False
         return True
-    def fire(self, x_range, y_range):
-        traj = Trajectory(distance, y_range)
-        global theta
-        theta = traj.solve()
+ 
+       
 
     def mouseCallback(self, event, x, y, flags, param):
         if event == cv.EVENT_LBUTTONUP:
@@ -266,35 +266,59 @@ class VehicleFinder:
         curYaw = 90
         curPitch = 90
 
+        fireLock = Condition()
+
+        def on_press(key):
+            global theta
+            try:
+                k = key.char  # single-char keys
+            except:
+                k = key.name  # other keys
+            if k == 'space':
+                if self.refPt != [None, None]:
+                    print('fire')
+                    # traj = Trajectory(distance*np.cos(curPitch-90), distance*np.sin(curPitch-90))
+                    fire = 1
+                    # theta = traj.solve()
+                    # pitch = int(theta+90)
+                    yaw = abs(90-int(((self.refPt[0]/windowCenterX)*90)/2)+45)
+                    pitch = abs(90-(int((((self.refPt[1]/windowCenterY)*50))/2))+25)
+
+                    curYaw = yaw
+                    curPitch = pitch
+
+                    pitch = pitch << 8
+                    fire = (fire << 15) | pitch 
+                    data = yaw | fire
+    
+                    fireLock.acquire()
+                    self.serial_write(str(data) + "\n", arduino)
+                    fireLock.release()
+
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()
+
         # main loop
         while True:
             if self.refPt != [None, None]:
-                # pitch and yaw are sent as OFFSETS from the current position
+                # pitch and yaw calcualted using fixed camera
                 yaw = abs(90-int(((self.refPt[0]/windowCenterX)*90)/2)+45)
-                if theta!= None:
-                    pitch = theta
-                    fire = 1
-                else:
-                    #Using static camera
-                    pitch = 90
-                    #pitch = abs(90-int(((self.refPt[1]/windowCenterY)*50)/2)+65 )
-                    #print(f"{self.refPt[0]=} {windowCenterX=}")
-                    fire = 0
-                    print(f"{yaw=} {pitch=}")
-                if abs(curYaw- yaw)>4 :
+                pitch = abs(90-(int((((self.refPt[1]/windowCenterY)*50))/2))+25)
+                fire = 0
+
+                if abs(curYaw - yaw) > 1 or abs(curPitch - pitch) > 1:
                     curYaw = yaw
-                    curPitch =pitch
-                    pitch = pitch << 9
-                    yaw = yaw << 5
-                    data = pitch | yaw
-                    data = data | fire
+                    curPitch = pitch
+
+                    pitch = pitch << 8
+                    fire = (fire << 15) | pitch 
+                    data = yaw | fire
+
+                    fireLock.acquire()
                     self.serial_write(str(data) + "\n", arduino)
+                    fireLock.release()
                    
             time.sleep(0.1)
-
-    # def exitfunc(self, arduino: serial.Serial):
-    #     arduino.write(bytes("exiting", "utf-8"))
-
 
 # rangefinder
 def tof_thread():
@@ -339,4 +363,4 @@ if __name__ == "__main__":
 
     cvThread.start()
     serialThread.start()
-    # evoThread.start()
+    evoThread.start()
