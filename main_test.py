@@ -39,6 +39,8 @@ centreY = int(viewport_height/2)
 evoWarning = False
 arduinoWarning = False
 
+dogLock = Condition()
+
 class VehicleFinder:
     CONFIDENCE_THRESHOLD = 0.5  # min confidence to draw a box
     NMS_THRESHOLD = 0.2  # lower num = more aggressive, fewer boxes
@@ -86,6 +88,7 @@ class VehicleFinder:
         if self.searching:
             self.refPt = [None, None]
             self.searching = False
+            dogLock.release()
         print(f"{threading.get_ident()} lost dog ended")
 
     def mark_vehicles(self, indicesToKeep, img):
@@ -107,8 +110,9 @@ class VehicleFinder:
             print('lost target')
             self.searching = True
             # TODO start the watchdog
-            watchdog = threading.Thread(target=self.watchdog, args=())
-            watchdog.start()
+            if dogLock.acquire(False, 0):
+                watchdog = threading.Thread(target=self.watchdog, args=())
+                newThread = watchdog.start()
             # start a timer, if timer reaches end then set refPt = [None, None]
             # create a nearBox function to see if current x,y is within that tol
             # in that time, if a box appears in a range around refPt, target that box
