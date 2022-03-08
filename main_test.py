@@ -28,7 +28,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['stop sign', 'car', 'bus', 'person']
+valid_targets = ['stop sign', 'car', 'bus', 'person', 'chair']
 
 viewport_width = 1280
 viewport_height = 720
@@ -60,14 +60,17 @@ class VehicleFinder:
     def isInBox(self, pointX, pointY, boundX, boundY, boundW, boundH):
         if pointX is None or pointY is None:
             return False
-        if (
-            pointX < boundX
-            or pointY < boundY
-            or pointX > boundX + boundW
-            or pointY > boundY + boundH
-        ):
-            return False
-        return True
+        
+        tolerance = 0
+
+        if self.searching:
+            tolerance = 100
+            
+        # if (pointX > boundX or pointY < boundY or pointX > boundX + boundW or pointY > boundY + boundH):
+        if (pointX > boundX - tolerance and pointX < boundX + boundW + tolerance and pointY > boundY - tolerance and pointY < boundY + boundH + tolerance):
+            return True
+        return False
+
 
     def mouseCallback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONUP:
@@ -80,9 +83,10 @@ class VehicleFinder:
     
     def watchdog(self):
         time.sleep(5)
-        self.refPt = [None, None]
-        self.searching = False
-        pass
+        if self.searching:
+            self.refPt = [None, None]
+            self.searching = False
+        print(f"{threading.get_ident()} lost dog ended")
 
     def mark_vehicles(self, indicesToKeep, img):
         self.hasTarget = False
@@ -94,6 +98,7 @@ class VehicleFinder:
                 if self.isInBox(self.refPt[0], self.refPt[1], x, y, w, h):
                     self.refPt = [int(x + 0.5 * w), int(y + 0.5 * h)]
                     self.hasTarget = True
+                    self.searching = False
 
                 cv2.rectangle(img, (x, y), (x + w, y + h), RED, 2)
         
@@ -102,10 +107,10 @@ class VehicleFinder:
             print('lost target')
             self.searching = True
             # TODO start the watchdog
-            # watchdog = threading.Thread(target=self.watchdog, args=())
-            # watchdog.start()
+            watchdog = threading.Thread(target=self.watchdog, args=())
+            watchdog.start()
             # start a timer, if timer reaches end then set refPt = [None, None]
-            #create a nearBox function to see if current x,y is within that tol
+            # create a nearBox function to see if current x,y is within that tol
             # in that time, if a box appears in a range around refPt, target that box
 
     def findObjects(self, outputs, img):
@@ -216,6 +221,13 @@ class VehicleFinder:
                         0.6,
                         RED,
                         2,)
+                
+                if self.searching:
+                    cv2.putText(img, "LOST DOG", (10,50), 
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        RED,
+                        2,)
 
                 cv2.imshow("Webcam capture", img)
                 cv2.waitKey(1)
@@ -264,16 +276,16 @@ class VehicleFinder:
                     yaw = abs(90-int(((self.refPt[0]/centreX)*90)/2)+45)
                     pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
 
+                    if yaw > 55 and yaw < 125 and pitch > 65 and pitch < 115:
+                        print(f"{pitch=} {yaw=}")
 
-                    # print(f"{pitch=} {yaw=}")
-
-                    pitch = pitch << 8
-                    fire = (fire << 15) | pitch 
-                    data = yaw | fire
-    
-                    serialLock.acquire()
-                    self.serial_write(str(data) + "\n", arduino)
-                    serialLock.release()
+                        pitch = pitch << 8
+                        fire = (fire << 15) | pitch 
+                        data = yaw | fire
+        
+                        serialLock.acquire()
+                        self.serial_write(str(data) + "\n", arduino)
+                        serialLock.release()
 
         listener = keyboard.Listener(on_press=on_press)
         listener.start()
@@ -284,10 +296,9 @@ class VehicleFinder:
                 # pitch and yaw calcualted using fixed camera
                 yaw = abs(90-int(((self.refPt[0]/centreX)*70)/2)+35)
                 pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
-                # print(f"{pitch=} {yaw=}")
                 fire = 0
-
-                if abs(curYaw - yaw) > 1 or abs(curPitch - pitch) > 1:
+                if (abs(curYaw - yaw) > 1 or abs(curPitch - pitch) > 1) and (yaw > 55 and yaw < 125 and pitch > 65 and pitch < 115):
+                    print(f"{pitch=} {yaw=}")
                     curYaw = yaw
                     curPitch = pitch
 
@@ -296,7 +307,15 @@ class VehicleFinder:
                     data = yaw | fire
 
                     serialLock.acquire()
+
                     self.serial_write(str(data) + "\n", arduino)
+                    ser_bytes = self.serial_read(arduino)
+                    decoded_bytes = ser_bytes[0:len(ser_bytes)-2].decode("utf-8")
+                    print(f"{decoded_bytes}")
+
+                    arduino.flushOutput()
+                    arduino.flushInput()
+
                     serialLock.release()
                    
             time.sleep(0.1)

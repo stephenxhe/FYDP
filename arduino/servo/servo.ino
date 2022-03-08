@@ -59,6 +59,11 @@ void movePitch(int angle, int motorSpeed) {
   currentPitch = Pitch.read();
 }
 
+void serialFlush(){
+  while(Serial.available() > 0) {
+    char t = Serial.read();
+ }
+}
 void moveYaw(int angle, int motorSpeed) {
   // 0 degrees points to right
   // 180 degrees points to left
@@ -83,22 +88,31 @@ void moveYaw(int angle, int motorSpeed) {
 
 void loop() {
   while (!Serial.available());
-  
   int serialIn = Serial.readString().toInt();
-//  int fire = serialIn >> 15;
-//  int yawIn = serialIn & 0b111111111;
-//  int pitchIn = serialIn >> 8  & 0b011111111;
 
   int yawIn = serialIn & 0b11111111;
-  int pitchIn = serialIn>> 8 & 0b01111111;
+  int pitchIn = serialIn >> 8 & 0b01111111;
   int fire = serialIn >> 15 & 0b1;
 
   if (fire == 1) {
     fire_tracker();
   } else {
-    moveYaw(yawIn, 0); 
-    movePitch(pitchIn, 10); 
+    if (yawIn > 55 && yawIn < 125) {
+      moveYaw(yawIn, 0); 
+    } else {
+      yawIn = 999;
+      serialFlush();
+    }
+    if (pitchIn > 65 && pitchIn < 115) {
+      movePitch(pitchIn, 10);  
+    } else {
+      pitchIn = 999;
+      serialFlush();
+    }
   }
   
-  Serial.println(pitchIn); 
+  char c_buffer[40];
+  sprintf(c_buffer, "%i %i", yawIn, pitchIn);
+  
+  Serial.println(c_buffer);
 }
