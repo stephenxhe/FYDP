@@ -267,14 +267,18 @@ class VehicleFinder:
             if k == 'space':
                 if self.refPt != [None, None]:
                     print('fire')
-                    # traj = Trajectory(distance*np.cos(curPitch-90), distance*np.sin(curPitch-90))
                     fire = 1
-                    # theta = traj.solve()
-                    # pitch = int(theta+90)
 
-                    # these values shouldn't matter
-                    yaw = abs(90-int(((self.refPt[0]/centreX)*90)/2)+45)
+                    # pitch and yaw calcualted using fixed camera
+                    yaw = abs(90-int(((self.refPt[0]/centreX)*70)/2)+35)
                     pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
+                    print("current pitch: {} yaw: {}".format(pitch, yaw))
+
+                    # Solve for relative theta to send to serial
+                    traj = Trajectory(distance*np.cos(pitch-90), distance*np.sin(yaw-90))
+                    # initial guess = pitch
+                    theta = traj.solve(pitch-90)
+                    pitch = int(theta + 90)
 
                     if yaw > 55 and yaw < 125 and pitch > 65 and pitch < 115:
                         print(f"{pitch=} {yaw=}")
