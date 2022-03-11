@@ -69,8 +69,8 @@ void moveYaw(int angle, int motorSpeed) {
   // 180 degrees points to left
 
   // limit yaw fov
-  if (angle > 125) angle = 135;
-  if (angle < 55) angle = 45;
+  if (angle > 100) angle = 100;
+  if (angle < 80) angle = 80;
   
   if (currentYaw < angle) {
     for (int i = currentYaw; i < angle - 0; i++) {
