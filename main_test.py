@@ -13,8 +13,8 @@ from pynput import keyboard
 
 # CONFIG FILES
 CLASSES_FILE = "./model_data/coco/coco.names"
-MODEL_CONFIGURATION = "./config/yolov3-tiny.cfg"
-MODEL_WEIGHTS = "./model_data/yolov3-tiny.weights"
+MODEL_CONFIGURATION = "./config/yolov3.cfg"
+MODEL_WEIGHTS = "./model_data/yolov3.weights"
 
 BAUD_RATE = 250000
 
@@ -28,7 +28,7 @@ GREEN = (0, 255, 0)
 
 yaw_tolerance = 2  # [degrees]
 
-valid_targets = ['stop sign', 'car', 'bus', 'person', 'chair']
+valid_targets = ['person']
 
 viewport_width = 1280
 viewport_height = 720
@@ -91,7 +91,7 @@ class VehicleFinder:
     def mark_vehicles(self, indicesToKeep, img):
         self.hasTarget = False
         for i in indicesToKeep:
-            if self.classNames[self.classIdxs[i]] in valid_targets:
+            if self.classNames[self.classIdxs[i]] not in valid_targets or True:
                 box = self.boundingBoxes[i]
                 x, y, w, h = box[0], box[1], box[2], box[3]
 
@@ -101,6 +101,7 @@ class VehicleFinder:
                     self.searching = False
 
                 cv2.rectangle(img, (x, y), (x + w, y + h), RED, 2)
+                # cv2.putText(img, f"{self.classNames[self.classIdxs[i]]}", (x, y - 10), cv2.FONT_HERSHEY_COMPLEX, 0.6, BLUE, 2,)
         
         if not self.hasTarget and self.refPt != [None, None] and not self.searching:
             # none of the detections contains refPt
@@ -276,7 +277,7 @@ class VehicleFinder:
                     yaw = abs(90-int(((self.refPt[0]/centreX)*90)/2)+45)
                     pitch = abs(90-(int((((self.refPt[1]/centreY)*50))/2))+25)
 
-                    if yaw > 55 and yaw < 125 and pitch > 65 and pitch < 115:
+                    if yaw > 80 and yaw < 100 and pitch > 65 and pitch < 115:
                         print(f"{pitch=} {yaw=}")
 
                         pitch = pitch << 8
@@ -310,7 +311,10 @@ class VehicleFinder:
 
                     self.serial_write(str(data) + "\n", arduino)
                     ser_bytes = self.serial_read(arduino)
-                    decoded_bytes = ser_bytes[0:len(ser_bytes)-2].decode("utf-8")
+                    try:
+                        decoded_bytes = ser_bytes[0:len(ser_bytes)-2].decode("utf-8")
+                    except UnicodeDecodeError:
+                        decoded_bytes = "couldn't decode"
                     print(f"{decoded_bytes}")
 
                     arduino.flushOutput()
